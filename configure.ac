@@ -491,11 +491,14 @@ if test "x$HAVE_DBUS" = "xyes" && test "x$enable_notify" != "xno" ; then
 fi
 
 if test "x$enable_mpris" != "xno" ; then
-    HAVE_MPRIS=yes
-    MPRIS_LIBS="$DBUS_DEPS_LIBS"
-    MPRIS_CFLAGS="$DBUS_DEPS_CFLAGS"
-    AC_SUBST(MPRIS_LIBS)
-    AC_SUBST(MPRIS_CFLAGS)
+    PKG_CHECK_MODULES(GLIB_DEPS, glib-2.0 gio-2.0, HAVE_GLIB=yes, HAVE_GLIB=no)
+	HAVE_MPRIS=$HAVE_GLIB
+	if test "x$HAVE_GLIB" != "xno" ; then
+    	MPRIS_LIBS="$GLIB_DEPS_LIBS"
+    	MPRIS_CFLAGS="$GLIB_DEPS_CFLAGS"
+    	AC_SUBST(MPRIS_LIBS)
+    	AC_SUBST(MPRIS_CFLAGS)
+	fi
 fi
 
 if test "x$enable_musepack" != "xno" ; then
