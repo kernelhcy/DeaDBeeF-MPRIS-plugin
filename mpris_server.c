@@ -40,6 +40,7 @@ static void handle_method_call(GDBusConnection *connection,
                     			gpointer user_data)
 {
 	debug("Method call: %s %s %s", object_path, interface_name, method_name);
+	g_dbus_method_invocation_return_value(invocation, NULL);
 }
 
 static GVariant *handle_get_property(GDBusConnection *connection,
