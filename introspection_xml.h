@@ -1,7 +1,7 @@
 #ifndef __INTROSPECTION_XML__
 #define __INTROSPECTION_XML__
 
-const gchar introspection_xml[] =
+const gchar xml_v1[] =
 "<node>"
 "<interface name='org.freedesktop.MediaPlayer'>"
 "    <method name='Identity'>"
@@ -11,10 +11,6 @@ const gchar introspection_xml[] =
 "    </method>"
 "    <method name='MprisVersion'>"
 "        <arg type='(qq)' direction='out'/>"
-"    </method>"
-"    <method name='GetMetadata'>"
-"        <arg type='i' direction='in' />"
-"        <arg type='a{sv}' direction='out' />"
 "    </method>"
 "    <method name='GetCurrentTrack'>"
 "        <arg type='i' direction='out' />"

@@ -22,7 +22,7 @@
 #include <string.h>
 #include "../../gettext.h"
 #include "../artwork/artwork.h"
-#include "mpris_server.h"
+#include "mpris_v1.h"
 
 DB_functions_t *deadbeef;
 DB_misc_t plugin;
