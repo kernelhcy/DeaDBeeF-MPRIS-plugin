@@ -137,6 +137,9 @@ static GVariant* get_metadata()
 		debug("tracknumber: %s", value);
 	}
 
+	//unref the track item
+	deadbeef -> pl_item_unref(track);
+
 no_track_playing:
 	/*
 	 * We MUST have at least one element!
