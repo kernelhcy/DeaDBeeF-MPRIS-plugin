@@ -26,6 +26,18 @@
 #endif
 #include <unistd.h>
 
+//caps
+enum{
+    NONE                  = 0,
+    CAN_GO_NEXT           = 1 << 0,
+    CAN_GO_PREV           = 1 << 1,
+    CAN_PAUSE             = 1 << 2,
+    CAN_PLAY              = 1 << 3,
+    CAN_SEEK              = 1 << 4,
+    CAN_PROVIDE_METADATA  = 1 << 5,
+    CAN_HAS_TRACKLIST     = 1 << 6
+};
+
 /*
  * Debug
  */
@@ -88,6 +100,19 @@ static void handle_root_method_call(GDBusConnection *connection,
 	}
 }
 
+static void get_metadata_value(GVariantBuilder *builder
+                                , DB_playItem_t *track
+                                , const char *key)
+{
+    const char *value;
+	value = deadbeef -> pl_find_meta(track, "artist");
+	if(value != NULL){
+		g_variant_builder_add(builder, "{sv}", "artist"
+								, g_variant_new_string(value));
+		debug("artist: %s", value);
+	}
+}
+
 /*
  * Get the meta data of the playing track
  */
@@ -101,41 +126,12 @@ static GVariant* get_metadata()
 		goto no_track_playing;
 	}
 	
-
-	value = deadbeef -> pl_find_meta(track, "artist");
-	if(value != NULL){
-		g_variant_builder_add(builder, "{sv}", "artist"
-								, g_variant_new_string(value));
-		debug("artist: %s", value);
-	}
-
-	value = deadbeef -> pl_find_meta(track, "album");
-	if(value != NULL){
-		g_variant_builder_add(builder, "{sv}", "album"
-								, g_variant_new_string(value));
-		debug("album: %s", value);
-	}
-
-	value = deadbeef -> pl_find_meta(track, "title");
-	if(value != NULL){
-		g_variant_builder_add(builder, "{sv}", "title"
-								, g_variant_new_string(value));
-		debug("title: %s", value);
-	}
-	
-	value = deadbeef -> pl_find_meta(track, "location");
-	if(value != NULL){
-		g_variant_builder_add(builder, "{sv}", "location"
-								, g_variant_new_string(value));
-		debug("location: %s", value);
-	}
-
-	value = deadbeef -> pl_find_meta(track, "tracknumber");
-	if(value != NULL){
-		g_variant_builder_add(builder, "{sv}", "tracknumber"
-								, g_variant_new_string(value));
-		debug("tracknumber: %s", value);
-	}
+        get_metadata_value(builder, track, "artist");
+        get_metadata_value(builder, track, "album");
+        get_metadata_value(builder, track, "title");
+        get_metadata_value(builder, track, "location");
+        get_metadata_value(builder, track, "tracknumber");
+        //get_metadata_value(builder, track, "");
 
 	//unref the track item
 	deadbeef -> pl_item_unref(track);
@@ -155,7 +151,6 @@ no_track_playing:
 	g_variant_builder_unref(builder);
 	return ret;
 }
-
 
 /*
  * Handle /Player method call
@@ -235,6 +230,47 @@ static void handle_player_method_call(GDBusConnection *connection,
 		g_variant_unref(ret_val);
 		return;
 	}
+
+	//GetCaps
+	if(g_strcmp0(method_name, MPRIS_METHOD_GETCAPS) == 0){
+		ret_val =  g_variant_new("((i))" , CAN_GO_NEXT | CAN_GO_PREV
+                                           | CAN_PAUSE | CAN_PLAY
+                                           | CAN_SEEK | CAN_PROVIDE_METADATA);
+		g_dbus_method_invocation_return_value(invocation, ret_val);
+		g_variant_unref(ret_val);
+		return;
+	}
+
+    //PositionGet
+	if(g_strcmp0(method_name, MPRIS_METHOD_POSITIONGET) == 0){
+        float pos = deadbeef -> streamer_get_playpos(); 
+		ret_val =  g_variant_new("(i)", (int)(pos * 1000));;
+		g_dbus_method_invocation_return_value(invocation, ret_val);
+		g_variant_unref(ret_val);
+		return;
+	}
+/* 
+	if(g_strcmp0(method_name, MPRIS_METHOD_GETSTATUS) == 0){
+		ret_val =  g_variant_new("((iiii))" , 1, 1, 1, 1);
+		g_dbus_method_invocation_return_value(invocation, ret_val);
+		g_variant_unref(ret_val);
+		return;
+	}
+
+	if(g_strcmp0(method_name, MPRIS_METHOD_GETSTATUS) == 0){
+		ret_val =  g_variant_new("((iiii))" , 1, 1, 1, 1);
+		g_dbus_method_invocation_return_value(invocation, ret_val);
+		g_variant_unref(ret_val);
+		return;
+	}
+
+	if(g_strcmp0(method_name, MPRIS_METHOD_GETSTATUS) == 0){
+		ret_val =  g_variant_new("((iiii))" , 1, 1, 1, 1);
+		g_dbus_method_invocation_return_value(invocation, ret_val);
+		g_variant_unref(ret_val);
+		return;
+	}
+*/
 }
 
 /*
