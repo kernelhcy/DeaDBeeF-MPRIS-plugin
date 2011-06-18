@@ -23,16 +23,30 @@
 #include "../../gettext.h"
 #include "../artwork/artwork.h"
 #include "mpris_v1.h"
+#include <glib.h>
 
 DB_functions_t *deadbeef;
 DB_misc_t plugin;
 DB_artwork_plugin_t *artwork_plugin;
 DB_mpris_server *srv = NULL;
+GThread *server_thread_id = NULL;
+
+static gpointer server_thread(gpointer data)
+{
+    GMainLoop *mainloop = g_main_loop_new(NULL, FALSE);
+	DB_mpris_server_start(&srv);
+    g_main_loop_run(mainloop);
+}
+
 
 int mpris_start (void) 
 {
 	debug("MPRIS Started....");
-	DB_mpris_server_start(&srv);
+    if(!g_thread_supported()){
+        g_thread_init(NULL);
+        debug("Init the thread...");
+    }
+    server_thread_id = g_thread_create(server_thread, NULL, FALSE, NULL);
     return 0;
 }
 

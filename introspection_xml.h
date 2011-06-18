@@ -1,7 +1,7 @@
 #ifndef __INTROSPECTION_XML__
 #define __INTROSPECTION_XML__
 
-const gchar xml_v1[] =
+const gchar xml_v1_root[] =
 "<node>"
 "<interface name='org.freedesktop.MediaPlayer'>"
 "    <method name='Identity'>"
@@ -11,6 +11,16 @@ const gchar xml_v1[] =
 "    </method>"
 "    <method name='MprisVersion'>"
 "        <arg type='(qq)' direction='out'/>"
+"    </method>"
+"</interface>"
+"</node>";
+
+const gchar xml_v1_tracklist[] =
+"<node>"
+"<interface name='org.freedesktop.MediaPlayer'>"
+"    <method name='GetMetadata'>"
+"        <arg type='i' direction='in' />"
+"        <arg type='a{sv}' direction='out' />"
 "    </method>"
 "    <method name='GetCurrentTrack'>"
 "        <arg type='i' direction='out' />"
@@ -32,6 +42,15 @@ const gchar xml_v1[] =
 "    <method name='SetRandom'>"
 "        <arg type='b' />"
 "    </method>"
+"    <signal name='TrackListChange'>"
+"        <arg type='i' />"
+"    </signal>  "
+"</interface>"
+"</node>";
+
+const gchar xml_v1_player[] =
+"<node>"
+"<interface name='org.freedesktop.MediaPlayer'>"
 "    <method name='Next'>"
 "    </method>"
 "    <method name='Prev'>"
@@ -43,7 +62,7 @@ const gchar xml_v1[] =
 "    <method name='Play'>"
 "    </method>"
 "    <method name='Repeat'>"
-"        <arg type='b' />"
+"        <arg type='b' direction='in'/>"
 "    </method>"
 "    <method name='GetStatus'>"
 "        <arg type='(iiii)' direction='out'/>"
@@ -78,9 +97,6 @@ const gchar xml_v1[] =
 "    <signal name='CapsChange'>"
 "        <arg type='i' />"
 "    </signal>"
-"    <signal name='TrackListChange'>"
-"        <arg type='i' />"
-"    </signal>  "
 "</interface>"
 "</node>";
 
