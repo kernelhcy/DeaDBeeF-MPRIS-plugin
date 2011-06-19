@@ -657,9 +657,9 @@ gint DB_mpris_server_start(DB_mpris_server **srv)
 }
 gint DB_mpris_server_stop(DB_mpris_server *srv)
 {
-    g_dbus_connection_unregister_object(srv -> root_reg_id);
-    g_dbus_connection_unregister_object(srv -> player_reg_id);
-    g_dbus_connection_unregister_object(srv -> tracklist_reg_id);
+    g_dbus_connection_unregister_object(srv -> con, srv -> root_reg_id);
+    g_dbus_connection_unregister_object(srv -> con, srv -> player_reg_id);
+    g_dbus_connection_unregister_object(srv -> con, srv -> tracklist_reg_id);
      
     g_bus_unown_name(srv -> owner_id);
 
