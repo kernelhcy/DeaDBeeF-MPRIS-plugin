@@ -85,6 +85,19 @@ static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
 	case DB_EV_SEEKED:
 		debug("Seeked.");
 		break;
+    case DB_EV_SONGCHANGED:
+        debug("Trach changed.");
+        DB_mpris_emit_trackchange();
+        break;
+    case DB_EV_PLAYLISTCHANGED:
+        debug("Playlist changed.");
+        DB_mpris_emit_tracklistchange();
+    case DB_EV_SONGSTARTED:
+    case DB_EV_CONFIGCHANGED:
+    case DB_EV_PAUSED:
+    case DB_EV_TOGGLE_PAUSE:
+    case DB_EV_STOP:
+        DB_mpris_emit_stauschange();
 	default:
 		break;
 	}

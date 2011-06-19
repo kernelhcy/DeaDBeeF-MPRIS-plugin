@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <gio/gio.h>
-#include <glib-2.0/glib.h>
+#include <glib.h>
 
 #include <../../streamer.h>
 
@@ -243,6 +243,60 @@ static void set_loop_status(GVariant *value)
 }
 
 /*
+ * Get the status of the player.
+ */
+static GVariant *get_status()
+{
+    DB_output_t *output = deadbeef -> get_output();
+    int first;
+    switch(output -> state())
+    {
+    case OUTPUT_STATE_PLAYING:
+        first = 0;
+        break;
+    case OUTPUT_STATE_PAUSED:
+        first = 1;
+        break;
+    case OUTPUT_STATE_STOPPED:
+        first = 2;
+        break;
+    default:
+        break;
+    }
+
+    int second = 1;
+    int order = deadbeef -> conf_get_int("playback.order", 0);
+    if(order == PLAYBACK_ORDER_LINEAR){
+        second = 0;
+    }else if(order == PLAYBACK_ORDER_RANDOM){
+        second = 1;
+    }
+
+    int loop = deadbeef -> conf_get_int("playback.loop", 0);
+    int third, forth;
+    switch(loop)
+    {
+    case PLAYBACK_MODE_NOLOOP:
+        third = forth = 0;
+        break;
+    case PLAYBACK_MODE_LOOP_ALL:
+        forth = 1;
+        third = 0;
+        break;
+    case PLAYBACK_MODE_LOOP_SINGLE:
+        forth = 0;
+        third = 1;
+        break;
+    default:
+        forth = 0;
+        third = 0;
+        break;
+    }    
+
+    return g_variant_new("((iiii))" , first, second, third, forth);
+}
+
+/*
  * Handle /Player method call
  */
 static void handle_player_method_call(GDBusConnection *connection,
@@ -310,8 +364,8 @@ static void handle_player_method_call(GDBusConnection *connection,
     GVariant *ret_val = NULL;
     //GetStatus
     if(g_strcmp0(method_name, MPRIS_METHOD_GETSTATUS) == 0){
-        ret_val =  g_variant_new("((iiii))" , 1, 1, 1, 1);
-        g_dbus_method_invocation_return_value(invocation, ret_val);
+        g_dbus_method_invocation_return_value(invocation
+                            , get_status());
         goto go_return;
     }
 
@@ -443,6 +497,7 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
         DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
         track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
         deadbeef -> plt_unref(pl);
+        deadbeef -> pl_item_unref(track);
         GVariant *ret_val = g_variant_new("(i)", track_id + 1);
         g_dbus_method_invocation_return_value(invocation, ret_val);
         return;
@@ -537,6 +592,92 @@ static gboolean handle_set_property(GDBusConnection *connection,
                                      gpointer user_data)
 {
 
+}
+
+/*
+ * Signal emit parameter strut.
+ */
+typedef struct
+{
+    gpointer data;
+    const gchar *signal_name;
+    const gchar *object_path;
+}SignalPar;
+
+/*
+ * The callback of timeout in main loop.
+ */
+static gboolean emit_signal_cb(gpointer data)
+{
+    SignalPar *par = data;
+    
+    g_dbus_connection_emit_signal(
+                        server -> con
+                        , NULL
+                        , par -> object_path
+                        , MPRIS_INTERFACE
+                        , par -> signal_name
+                        , par -> data, NULL);
+    g_free(par);
+    return FALSE;
+}
+
+/*
+ * Emit a signal of signal_name with data
+ */
+void emit_signal(const gchar *obj, const gchar * signal_name, gpointer data)
+{
+    GMainContext *ctx = g_main_context_get_thread_default();
+    if(ctx == NULL){
+        ctx = g_main_context_default();
+    }
+
+    SignalPar *par = g_malloc(sizeof(SignalPar));
+    par -> data = data;
+    par -> signal_name = signal_name;
+    par -> object_path = obj;
+    GSource *src = g_timeout_source_new((guint)0);
+    g_source_set_callback(src, (GSourceFunc)emit_signal_cb, par, NULL);
+    g_source_attach(src, ctx);
+    g_source_unref(src);
+
+}
+
+void DB_mpris_emit_trackchange()
+{
+
+    GVariant *metadata = get_metadata(-1);
+    debug("emit track change signl.");
+    emit_signal(MPRIS_PLAYER_PATH, MPRIS_SIGNAL_TRACKCHANGE, metadata);
+}
+
+void DB_mpris_emit_stauschange()
+{
+    debug("emit status change signl.");
+    emit_signal(MPRIS_PLAYER_PATH, MPRIS_SIGNAL_STATUSCHANGE, get_status());
+}
+void DB_mpris_emit_capschange()
+{
+    /*
+     * Will NOT change any more!!
+     */
+}
+
+void DB_mpris_emit_tracklistchange()
+{
+    int track_id = 0;
+    /*
+     * We use the index of the last track to calculate the length
+     * of the play list.
+     */
+    ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+    DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
+    track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+    deadbeef -> plt_unref(pl);
+    deadbeef -> pl_item_unref(track);
+    GVariant *ret_val = g_variant_new("(i)", track_id + 1);
+    debug("emit tracklist change signl.");
+    emit_signal(MPRIS_TRACKLIST_PATH, MPRIS_SIGNAL_TRACKLISTCHAGE, ret_val);
 }
 
 /* root vtable */

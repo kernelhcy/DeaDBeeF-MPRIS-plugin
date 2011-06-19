@@ -3,6 +3,7 @@
 #include <glib-2.0/glib.h>
 #include "../../deadbeef.h"
 
+#define MPRIS_INTERFACE         "org.freedesktop.MediaPlayer"
 #define MPRIS_SERVICE 			"org.mpris.deadbeef"
 #define MPRIS_ROOT_PATH 		"/"
 #define MPRIS_PLAYER_PATH 		"/Player"
@@ -78,4 +79,12 @@ enum{
 gint DB_mpris_server_start(DB_mpris_server **srv);
 gint DB_mpris_server_stop(DB_mpris_server *srv);
 
+/*
+ * emit the signal
+ */
+void DB_mpris_emit_trackchange();
+void DB_mpris_emit_stauschange();
+void DB_mpris_emit_capschange();
+
+void DB_mpris_emit_tracklistchange();
 #endif
