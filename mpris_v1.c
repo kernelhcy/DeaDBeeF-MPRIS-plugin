@@ -112,14 +112,31 @@ static void handle_root_method_call(GDBusConnection *connection,
                         , g_variant_new("((qq))", 1, 0));
         return;
     }
+
+    debug("Error! Unsupported method. %s.%s", interface_name, method_name);
+    g_dbus_method_invocation_return_error(invocation
+                                    , G_DBUS_ERROR
+                                    , G_DBUS_ERROR_NOT_SUPPORTED
+                                    , "Method %s.%s not supported"
+                                    , interface_name
+                                    , method_name);
+    return;
 }
 
 /*
  * Get the meta data of the playing track
  */
-static GVariant* get_metadata()
+static GVariant* get_metadata(int track_id)
 {
-    DB_playItem_t *track = deadbeef -> streamer_get_playing_track();
+    DB_playItem_t *track = NULL;
+    if(track_id < 0){
+        track = deadbeef -> streamer_get_playing_track();
+    }else{
+        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+        track = deadbeef -> plt_get_item_for_idx(
+                                pl, track_id, PL_MAIN);
+        deadbeef -> plt_unref(pl);
+    }
 
     const char *value;
     GVariant *tmp;
@@ -146,7 +163,7 @@ static GVariant* get_metadata()
     gchar *uri_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%F");
     uri_str = g_strdup_printf("file://%s", buf);
-    debug("[mpris1] get_metadata: uri %s\n", uri_str);  
+    debug("get_metadata: uri %s\n", uri_str);  
     g_variant_builder_add (builder, "{sv}", "location", g_variant_new("s"
                                                 , g_strdup(uri_str)));
     g_free(uri_str);
@@ -154,7 +171,7 @@ static GVariant* get_metadata()
     gchar *title_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
     title_str = g_strdup_printf("%s", buf);
-    debug("[mpris1] get_metadata: title %s\n", title_str);
+    debug("get_metadata: title %s\n", title_str);
     g_variant_builder_add(builder, "{sv}", "title", g_variant_new("s"
                                                 , g_strdup(title_str)));
     g_free(title_str);
@@ -162,7 +179,7 @@ static GVariant* get_metadata()
     gchar *artist_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%a");
     artist_str = g_strdup_printf("%s", buf);
-    debug("[mpris1] get_metadata: artist %s\n", artist_str);
+    debug("get_metadata: artist %s\n", artist_str);
     g_variant_builder_add(builder, "{sv}", "artist", g_variant_new("s"
                                                 , g_strdup(artist_str)));
     g_free(artist_str);
@@ -170,13 +187,13 @@ static GVariant* get_metadata()
     gchar *album_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
     album_str = g_strdup_printf("%s", buf);
-    debug("[mpris1] get_metadata: album %s\n", album_str);
+    debug("get_metadata: album %s\n", album_str);
     g_variant_builder_add(builder, "{sv}", "album", g_variant_new("s"
                                                 , g_strdup(album_str)));
     g_free(album_str);
 
     gint32 duration = (gint32)(deadbeef -> pl_get_item_duration(track));
-    debug("[mpris1] get_metadata: time %d\n", duration);
+    debug("get_metadata: time %d\n", duration);
     g_variant_builder_add (builder, "{sv}", "time", g_variant_new("i", duration));
 
     //unref the track item
@@ -200,6 +217,29 @@ no_track_playing:
     curr_track = track;
 
     return ret;
+}
+
+/*
+ * Set the loop status.
+ * @param value 
+ *          "None" no loop
+ *          "Playlist" loop the play list
+ *          "Track" loop the current track
+ */
+static void set_loop_status(GVariant *value)
+{    
+    gchar *loop_status;
+    g_variant_get(value, "s", &loop_status);
+
+    if (g_strcmp0(loop_status, "None") == 0) {
+        deadbeef -> conf_set_int("playback.loop", PLAYBACK_MODE_NOLOOP);
+    } else if (g_strcmp0(loop_status, "Playlist") == 0) {
+        deadbeef -> conf_set_int("playback.loop", PLAYBACK_MODE_LOOP_ALL);
+    } else if (g_strcmp0(loop_status, "Track") == 0) {
+        deadbeef -> conf_set_int("playback.loop", PLAYBACK_MODE_LOOP_SINGLE);
+    }
+    deadbeef -> sendmessage(DB_EV_CONFIGCHANGED, 0, 0, 0);
+    return;
 }
 
 /*
@@ -256,10 +296,14 @@ static void handle_player_method_call(GDBusConnection *connection,
     
     //Repeat
     if(g_strcmp0(method_name, MPRIS_METHOD_REPEAT) == 0){
+        gboolean loop;
+        g_variant_get(parameters, "(b)", &loop);
+        if(loop == TRUE){
+            set_loop_status(g_variant_new_string("Track"));
+        }else{
+            set_loop_status(g_variant_new_string("None"));
+        }
         g_dbus_method_invocation_return_value(invocation, NULL);
-        /*
-         * NOT supported!
-         */
         goto go_return;
     }
     
@@ -273,7 +317,7 @@ static void handle_player_method_call(GDBusConnection *connection,
 
     //GetMetadata
     if(g_strcmp0(method_name, MPRIS_METHOD_GETMETA) == 0){
-        ret_val = get_metadata();
+        ret_val = get_metadata(-1);
         g_dbus_method_invocation_return_value(invocation, ret_val);
         goto go_return;
     }
@@ -282,7 +326,8 @@ static void handle_player_method_call(GDBusConnection *connection,
     if(g_strcmp0(method_name, MPRIS_METHOD_GETCAPS) == 0){
         ret_val =  g_variant_new("((i))" , CAN_GO_NEXT | CAN_GO_PREV
                                            | CAN_PAUSE | CAN_PLAY
-                                           | CAN_SEEK | CAN_PROVIDE_METADATA);
+                                           | CAN_SEEK | CAN_PROVIDE_METADATA
+                                           | CAN_HAS_TRACKLIST);
         g_dbus_method_invocation_return_value(invocation, ret_val);
         goto go_return;
     }
@@ -325,9 +370,34 @@ static void handle_player_method_call(GDBusConnection *connection,
         goto go_return;
     }
 
+    debug("Error! Unsupported method. %s.%s", interface_name, method_name);
+    g_dbus_method_invocation_return_error(invocation
+                                    , G_DBUS_ERROR
+                                    , G_DBUS_ERROR_NOT_SUPPORTED
+                                    , "Method %s.%s not supported"
+                                    , interface_name
+                                    , method_name);
 go_return: 
     return;
 }
+
+/*
+ * The callback of plt_add_file
+ */
+static int add_file_cb(DB_playItem_t *it, void *data) {
+    gboolean play_imm = (gboolean)data;
+    if (it != NULL) {
+        debug("add_file_cb %d\n", play_imm);
+        if (play_imm == TRUE) {
+            int idx = deadbeef -> pl_get_idx_of(it);
+            deadbeef -> sendmessage(DB_EV_PLAY_NUM, 0, idx, 0);
+        }
+    } else {
+        debug("add_file_cb NULL\n");
+    }
+    return 0;
+}
+
 
 /*
  * Handle /TrackList object method call
@@ -341,6 +411,109 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
                                     GDBusMethodInvocation *invocation,
                                     gpointer user_data)
 {
+    //GetMetadata
+    if(g_strcmp0(method_name, MPRIS_METHOD_GETMETA) == 0){
+        int track_id = 0;
+        g_variant_get(parameters, "(i)", & track_id);
+        GVariant *ret_val = get_metadata(track_id);
+        g_dbus_method_invocation_return_value(invocation, ret_val);
+        return;
+    }
+
+    //GetCurrentTrack
+    if(g_strcmp0(method_name, MPRIS_METHOD_GETCURRENTTRACK) == 0){
+        int track_id = 0;
+        DB_playItem_t *track = deadbeef -> streamer_get_playing_track();
+        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+        track_id = deadbeef -> plt_get_item_idx(pl ,track, PL_MAIN);
+        deadbeef -> plt_unref(pl);
+        GVariant *ret_val = g_variant_new("(i)", track_id);
+        g_dbus_method_invocation_return_value(invocation, ret_val);
+        return;
+    }
+
+    //GetLength
+    if(g_strcmp0(method_name, MPRIS_METHOD_GETLENGTH) == 0){
+        int track_id = 0;
+        /*
+         * We use the index of the last track to calculate the length
+         * of the play list.
+         */
+        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+        DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
+        track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+        deadbeef -> plt_unref(pl);
+        GVariant *ret_val = g_variant_new("(i)", track_id + 1);
+        g_dbus_method_invocation_return_value(invocation, ret_val);
+        return;
+    }
+
+    //AddTrack
+    if(g_strcmp0(method_name, MPRIS_METHOD_ADDTRACK) == 0){
+        const char *uri;
+        gboolean play;
+        g_variant_get (parameters, "(sb)", &uri, &play);
+        debug("Add Track: %s %d", uri, play);
+        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+        /*
+         * !!add_file_cb can NOT be called...
+         */
+        int ret = deadbeef -> plt_add_file(pl, uri, add_file_cb, (void*)play);
+        deadbeef -> plt_unref(pl);
+        if (ret == 0) {
+            deadbeef -> sendmessage(DB_EV_PLAYLISTCHANGED, 0, 0, 0);
+        }
+        
+        g_dbus_method_invocation_return_value(invocation
+                                        , g_variant_new("(i)", ret));
+        return;
+    }
+
+    //DelTrack
+    if(g_strcmp0(method_name, MPRIS_METHOD_DELTRACK) == 0){
+        /*
+         * No Supported!
+         */
+        debug("DelTrack is not supported...");
+        g_dbus_method_invocation_return_value(invocation, NULL);
+        return;
+    }
+
+    //SetLoop
+    if(g_strcmp0(method_name, MPRIS_METHOD_SETLOOP) == 0){
+        gboolean loop;
+        g_variant_get(parameters, "(b)", &loop);
+        if(loop == TRUE){
+            set_loop_status(g_variant_new_string("Playlist"));
+        }else{
+            set_loop_status(g_variant_new_string("None"));
+        }
+        g_dbus_method_invocation_return_value(invocation, NULL);
+        return;
+    }
+
+    //SetRandom
+    if(g_strcmp0(method_name, MPRIS_METHOD_SETRANDOM) == 0){
+        gboolean random;
+        g_variant_get(parameters, "(b)", &random);
+        if(random == FALSE){
+            deadbeef -> conf_set_int("playback.order", PLAYBACK_ORDER_LINEAR);
+        }else{
+            deadbeef -> conf_set_int("playback.order", PLAYBACK_ORDER_RANDOM);
+        }
+        deadbeef -> sendmessage(DB_EV_CONFIGCHANGED, 0, 0, 0);
+        g_dbus_method_invocation_return_value(invocation, NULL);
+        return;
+    }
+
+    debug("Error! Unsupported method. %s.%s", interface_name, method_name);
+    g_dbus_method_invocation_return_error(invocation
+                                    , G_DBUS_ERROR
+                                    , G_DBUS_ERROR_NOT_SUPPORTED
+                                    , "Method %s.%s not supported"
+                                    , interface_name
+                                    , method_name);
+    return;
 }
 
 static GVariant *handle_get_property(GDBusConnection *connection,
@@ -484,6 +657,15 @@ gint DB_mpris_server_start(DB_mpris_server **srv)
 }
 gint DB_mpris_server_stop(DB_mpris_server *srv)
 {
+    g_dbus_connection_unregister_object(srv -> root_reg_id);
+    g_dbus_connection_unregister_object(srv -> player_reg_id);
+    g_dbus_connection_unregister_object(srv -> tracklist_reg_id);
+     
+    g_bus_unown_name(srv -> owner_id);
+
+    g_dbus_node_info_unref(srv -> introspection_data_root);
+    g_dbus_node_info_unref(srv -> introspection_data_tracklist);
+    g_dbus_node_info_unref(srv -> introspection_data_player);
 
     g_free(srv);
     return DB_MPRIS_OK;
