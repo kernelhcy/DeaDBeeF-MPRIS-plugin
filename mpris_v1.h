@@ -39,16 +39,6 @@
 #define MPRIS_SIGNAL_CAPSCHANGE			"CapsChange"
 #define MPRIS_SIGNAL_TRACKLISTCHAGE		"TrackListChange"
 
-#define MPRIS__DEBUG 1
-
-#ifndef MPRIS__DEBUG
-	#define debug(...)
-#else
-	#define debug(...)  do_debug(__VA_ARGS__)
-#endif
-
-void do_debug(const char *fmt, ...);
-
 /*
  * The deadbeef apis
  */
@@ -57,7 +47,7 @@ extern DB_functions_t *deadbeef;
 /*
  * The server struct.
  */
-typedef struct _DB_mpris_server DB_mpris_server;
+typedef struct _DB_mpris_server_v1 DB_mpris_server_v1;
 
 /*
  * return status.
@@ -71,20 +61,20 @@ enum{
  * Start and stop the MPRIS server.
  * Usage:
  * 		db_mpris_server *srv;
- * 		db_mpris_server_start(&srv);
+ * 		db_mpris_server_start_v1(&srv);
  * 		...
- * 		db_mpris_server_stop(srv);
+ * 		db_mpris_server_stop_v1(srv);
  * 		srv = NULL;
  */
-gint DB_mpris_server_start(DB_mpris_server **srv);
-gint DB_mpris_server_stop(DB_mpris_server *srv);
+gint DB_mpris_server_start_v1(DB_mpris_server_v1 **srv);
+gint DB_mpris_server_stop_v1(DB_mpris_server_v1 *srv);
 
 /*
  * emit the signal
  */
-void DB_mpris_emit_trackchange();
-void DB_mpris_emit_stauschange();
-void DB_mpris_emit_capschange();
+void DB_mpris_emit_trackchange_v1();
+void DB_mpris_emit_statuschange_v1();
+void DB_mpris_emit_capschange_v1();
 
-void DB_mpris_emit_tracklistchange();
+void DB_mpris_emit_tracklistchange_v1();
 #endif

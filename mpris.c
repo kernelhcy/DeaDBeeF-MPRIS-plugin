@@ -20,103 +20,89 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../gettext.h"
-#include "../artwork/artwork.h"
 #include "mpris_v1.h"
 #include <glib.h>
+#include "mpris_common.h"
 
 DB_functions_t *deadbeef;
-DB_misc_t plugin;
-DB_artwork_plugin_t *artwork_plugin;
-DB_mpris_server *srv = NULL;
+
+DB_mpris_server_v1 *srv_v1 = NULL;
+
 GThread *server_thread_id = NULL;
+GMainLoop  *mpris_main_loop = NULL;
 
 static gpointer server_thread(gpointer data)
 {
-    GMainLoop *mainloop = g_main_loop_new(NULL, FALSE);
-	DB_mpris_server_start(&srv);
-    g_main_loop_run(mainloop);
+    mpris_main_loop = g_main_loop_new(NULL, FALSE);
+    DB_mpris_server_start_v1(&srv_v1);
+    g_main_loop_run(mpris_main_loop);
+    return NULL;
 }
 
 
 int mpris_start (void) 
 {
-	debug("MPRIS Started....");
+    debug("MPRIS Started....");
     if(!g_thread_supported()){
         g_thread_init(NULL);
         debug("Init the thread...");
     }
-    server_thread_id = g_thread_create(server_thread, NULL, FALSE, NULL);
+    GError *err = NULL;
+    server_thread_id = g_thread_create(server_thread, NULL, FALSE, &err);
+    if(server_thread_id == NULL){
+        debug("Create MPRIS thread error. %d:%s", err -> code, err -> message);
+        g_error_free(err);
+        return -1;
+    }
     return 0;
 }
 
 int mpris_stop (void) 
-{	
-	debug("MPRIS Stoped....");
-	DB_mpris_server_stop(srv);
-    return 0;
-}
-
-static int mpris_connect (void) 
-{
-	debug("MPRIS connect....");
-    return 0;
-}
-
-static int mpris_disconnect (void) 
-{
-	debug("MPRIS disconnect....");
+{    
+    debug("MPRIS Stoped....");
+    DB_mpris_server_stop_v1(srv_v1);
+    g_main_loop_quit(mpris_main_loop);
     return 0;
 }
 
 static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) 
 {
-    const char *album = NULL;
-    const char *artist = NULL;
-    const char *title = NULL;
-	DB_playItem_t* track = NULL;
-	ddb_event_track_t* ev = ctx;
-	if(ev != NULL){
-		track = ev -> track;
-	}
-
-	switch(id)
-	{
-	case DB_EV_SEEKED:
-		debug("Seeked.");
-		break;
+    switch(id)
+    {
+    case DB_EV_SEEKED:
+        break;
     case DB_EV_SONGCHANGED:
         debug("Trach changed.");
-        DB_mpris_emit_trackchange();
+        DB_mpris_emit_trackchange_v1();
         break;
     case DB_EV_PLAYLISTCHANGED:
         debug("Playlist changed.");
-        DB_mpris_emit_tracklistchange();
+        DB_mpris_emit_tracklistchange_v1();
     case DB_EV_SONGSTARTED:
     case DB_EV_CONFIGCHANGED:
     case DB_EV_PAUSED:
     case DB_EV_TOGGLE_PAUSE:
     case DB_EV_STOP:
-        DB_mpris_emit_stauschange();
-	default:
-		break;
-	}
-	return 0;
+        DB_mpris_emit_statuschange_v1();
+    default:
+        break;
+    }
+    return 0;
 }
 static const char settings_dlg[] =
-    "property \"Enable\" checkbox mpris.enable 0;\n"
+    "property \"Enable\" checkbox mpris.enable 1;\n"
 ;
 
-DB_misc_t plugin = {
-    .plugin.api_vmajor = 1,
-    .plugin.api_vminor = 0,
-    .plugin.type = DB_PLUGIN_MISC,
-    .plugin.version_major = 1,
-    .plugin.version_minor = 0,
-    .plugin.id = "mpris",
-    .plugin.name = "MPRIS Plugin",
-    .plugin.descr = "Communicate with other application useing D-Bus.",
-    .plugin.copyright = 
+DB_plugin_t plugin = {
+    .api_vmajor = 1,
+    .api_vminor = 0,
+    .type = DB_PLUGIN_MISC,
+    .version_major = 1,
+    .version_minor = 0,
+    .id = "mpris",
+    .name = "MPRIS Plugin",
+    .descr = "Communicate with other application useing D-Bus.",
+    .copyright = 
         "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
         "\n"
         "This program is free software; you can redistribute it and/or\n"
@@ -133,18 +119,18 @@ DB_misc_t plugin = {
         "along with this program; if not, write to the Free Software\n"
         "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.\n"
     ,
-    .plugin.website = "",
-    .plugin.start = mpris_start,
-    .plugin.stop = mpris_stop,
-    .plugin.connect = mpris_connect,
-    .plugin.disconnect = mpris_disconnect,
-    .plugin.configdialog = settings_dlg,
-    .plugin.message = mpris_message,
+    .website = "http://code.google.com/p/deadbeef-mpris-plugin/",
+    .start = mpris_start,
+    .stop = mpris_stop,
+    .connect = NULL,
+    .disconnect = NULL,
+    .configdialog = settings_dlg,
+    .message = mpris_message,
 };
 
 DB_plugin_t * mpris_load (DB_functions_t *ddb) 
 {
-	debug("Load...");
+    debug("Load...");
     deadbeef = ddb;
-    return &plugin.plugin;
+    return &plugin;
 }

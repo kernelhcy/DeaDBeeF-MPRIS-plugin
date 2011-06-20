@@ -106,10 +106,10 @@ AC_ARG_ENABLE(vfs-zip,      [AS_HELP_STRING([--enable-vfs-zip      ], [build vfs
 AC_ARG_ENABLE(converter,      [AS_HELP_STRING([--enable-converter      ], [build converter plugin (default: auto)])], [enable_converter=$enableval], [enable_converter=yes])
 AC_ARG_ENABLE(artwork-imlib2, [AS_HELP_STRING([--enable-artwork-imlib2      ], [use imlib2 in artwork plugin (default: auto)])], [enable_artwork_imlib2=$enableval], [enable_artwork_imlib2=yes])
 
-AC_ARG_ENABLE(mpris,   [AS_HELP_STRING([--disable-mpris  ], \
-			  [disable MPRIS Interface plugin \
-			   (default:enabled)])],\
-			[enable_mpris=$enableval], [enable_mpris=yes])
+AC_ARG_ENABLE(mpris, [AS_HELP_STRING([--disable-mpris  ], \
+            [disable MPRIS Interface plugin \
+                (default:enabled)])],\
+            [enable_mpris=$enableval], [enable_mpris=yes])
 
 if test "x$enable_staticlink" != "xno" ; then
     AC_DEFINE_UNQUOTED([STATICLINK], [1], [Define if building static version])
@@ -492,13 +492,13 @@ fi
 
 if test "x$enable_mpris" != "xno" ; then
     PKG_CHECK_MODULES(GLIB_DEPS, glib-2.0 gio-2.0 gthread-2.0, HAVE_GLIB=yes, HAVE_GLIB=no)
-	HAVE_MPRIS=$HAVE_GLIB
-	if test "x$HAVE_GLIB" != "xno" ; then
-    	MPRIS_LIBS="$GLIB_DEPS_LIBS"
-    	MPRIS_CFLAGS="$GLIB_DEPS_CFLAGS"
-    	AC_SUBST(MPRIS_LIBS)
-    	AC_SUBST(MPRIS_CFLAGS)
-	fi
+    HAVE_MPRIS=$HAVE_GLIB
+    if test "x$HAVE_GLIB" != "xno" ; then
+        MPRIS_LIBS="$GLIB_DEPS_LIBS"
+        MPRIS_CFLAGS="$GLIB_DEPS_CFLAGS"
+        AC_SUBST(MPRIS_LIBS)
+        AC_SUBST(MPRIS_CFLAGS)
+    fi
 fi
 
 if test "x$enable_musepack" != "xno" ; then

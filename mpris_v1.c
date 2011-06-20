@@ -1,30 +1,10 @@
 #include "mpris_v1.h"
+#include "mpris_common.h"
 #include "introspection_xml.h"
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdarg.h>
 #include <gio/gio.h>
 #include <glib.h>
-
-#include <../../streamer.h>
-
-#include <limits.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <sys/fcntl.h>
-#include <sys/errno.h>
-#include <signal.h>
-#ifdef __linux__
-#include <execinfo.h>
-#endif
-#ifdef HAVE_CONFIG_H
-#  include <config.h>
-#endif
-#include <unistd.h>
+#include <glib/gprintf.h>
+#include <stdlib.h>
 
 //caps
 enum{
@@ -44,20 +24,7 @@ enum{
 static GVariant *curr_metadata = NULL;
 static DB_playItem_t *curr_track = NULL;
 
-/*
- * Debug
- */
-void do_debug(const char *fmt, ...)
-{
-    va_list arg_ptr;
-    va_start(arg_ptr, fmt);
-    printf("\e[32m\e[1mMPRIS Debug Info: \e[0m\e[34m");
-    vprintf(fmt, arg_ptr);
-    printf("\e[0m\n");
-    va_end(arg_ptr);
-}
-
-struct _DB_mpris_server
+struct _DB_mpris_server_v1
 {
     GDBusConnection *con;
 
@@ -75,7 +42,7 @@ struct _DB_mpris_server
 /*
  * Information. 
  */
-static DB_mpris_server *server = NULL;
+static DB_mpris_server_v1 *server = NULL;
 
 /*
  * Handle the / object method call
@@ -92,7 +59,7 @@ static void handle_root_method_call(GDBusConnection *connection,
     //Identity
     if(g_strcmp0(method_name, MPRIS_METHOD_IDENTITY) == 0){
         gchar identify[100];
-        sprintf(identify, "DeadBeef %d.%d", deadbeef -> vmajor, deadbeef -> vminor);
+        g_sprintf(identify, "DeadBeef %d.%d", deadbeef -> vmajor, deadbeef -> vminor);
         g_dbus_method_invocation_return_value(invocation
                             , g_variant_new("(s)", identify));
         return;
@@ -138,7 +105,6 @@ static GVariant* get_metadata(int track_id)
         deadbeef -> plt_unref(pl);
     }
 
-    const char *value;
     GVariant *tmp;
     GVariant *ret = NULL;
 
@@ -248,7 +214,7 @@ static void set_loop_status(GVariant *value)
 static GVariant *get_status()
 {
     DB_output_t *output = deadbeef -> get_output();
-    int first;
+    int first = 0;
     switch(output -> state())
     {
     case OUTPUT_STATE_PLAYING:
@@ -571,17 +537,7 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
     return;
 }
 
-static GVariant *handle_get_property(GDBusConnection *connection,
-                                     const gchar *sender,
-                                     const gchar *object_path,
-                                     const gchar *interface_name,
-                                     const gchar *property_name,
-                                     GError **error,
-                                     gpointer user_data)
-{
-    return NULL;
-}
-
+#if 0
 static gboolean handle_set_property(GDBusConnection *connection,
                                      const gchar *sender,
                                      const gchar *object_path,
@@ -593,6 +549,7 @@ static gboolean handle_set_property(GDBusConnection *connection,
 {
 
 }
+#endif
 
 /*
  * Signal emit parameter strut.
@@ -643,7 +600,7 @@ void emit_signal(const gchar *obj, const gchar * signal_name, gpointer data)
 
 }
 
-void DB_mpris_emit_trackchange()
+void DB_mpris_emit_trackchange_v1()
 {
 
     GVariant *metadata = get_metadata(-1);
@@ -651,19 +608,19 @@ void DB_mpris_emit_trackchange()
     emit_signal(MPRIS_PLAYER_PATH, MPRIS_SIGNAL_TRACKCHANGE, metadata);
 }
 
-void DB_mpris_emit_stauschange()
+void DB_mpris_emit_statuschange_v1()
 {
     debug("emit status change signl.");
     emit_signal(MPRIS_PLAYER_PATH, MPRIS_SIGNAL_STATUSCHANGE, get_status());
 }
-void DB_mpris_emit_capschange()
+void DB_mpris_emit_capschange_v1()
 {
     /*
      * Will NOT change any more!!
      */
 }
 
-void DB_mpris_emit_tracklistchange()
+void DB_mpris_emit_tracklistchange_v1()
 {
     int track_id = 0;
     /*
@@ -756,32 +713,32 @@ static void on_name_lost (GDBusConnection *connection,
 }
 
 
-gint DB_mpris_server_start(DB_mpris_server **srv)
+gint DB_mpris_server_start_v1(DB_mpris_server_v1 **srv)
 {
     g_type_init();
 
-    server = g_new(DB_mpris_server, 1);
+    server = g_new(DB_mpris_server_v1, 1);
     if(server == NULL){
-        printf("Create DB_mpris_server error!!\n");
+        debug("Create DB_mpris_server error!!\n");
         return DB_MPRIS_ERROR;
     }
     
     server -> introspection_data_root 
                         = g_dbus_node_info_new_for_xml(xml_v1_root, NULL);
     if(server -> introspection_data_root == NULL){
-        printf("Create root dbus node info error!!\n", __FILE__, __LINE__);
+        debug("Create root dbus node info error!! %s %d\n", __FILE__, __LINE__);
         return DB_MPRIS_ERROR;
     }
     server -> introspection_data_player 
                         = g_dbus_node_info_new_for_xml(xml_v1_player, NULL);
     if(server -> introspection_data_player == NULL){
-        printf("Create player dbus node info error!!\n", __FILE__, __LINE__);
+        debug("Create player dbus node info error!! %s %d\n", __FILE__, __LINE__);
         return DB_MPRIS_ERROR;
     }
     server -> introspection_data_tracklist 
                         = g_dbus_node_info_new_for_xml(xml_v1_tracklist, NULL);
     if(server -> introspection_data_tracklist == NULL){
-        printf("Create tracklist dbus node info error!!\n", __FILE__, __LINE__);
+        debug("Create tracklist dbus node info error!! %s %d\n", __FILE__, __LINE__);
         return DB_MPRIS_ERROR;
     }
 
@@ -796,7 +753,8 @@ gint DB_mpris_server_start(DB_mpris_server **srv)
     *srv = server;
     return DB_MPRIS_OK;
 }
-gint DB_mpris_server_stop(DB_mpris_server *srv)
+
+gint DB_mpris_server_stop_v1(DB_mpris_server_v1 *srv)
 {
     g_dbus_connection_unregister_object(srv -> con, srv -> root_reg_id);
     g_dbus_connection_unregister_object(srv -> con, srv -> player_reg_id);
