@@ -1,7 +1,7 @@
 #ifndef __MPRIS_SERVER_H_
 #define __MPRIS_SERVER_H_
 #include <glib-2.0/glib.h>
-#include "../../deadbeef.h"
+#include "deadbeef.h"
 
 #define MPRIS_INTERFACE         "org.freedesktop.MediaPlayer"
 #define MPRIS_SERVICE 			"org.mpris.deadbeef"
