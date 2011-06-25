@@ -1,10 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([deadbeef-mpirs-plugin], [1.0])
-
+AC_INIT([deadbeef], [1.0], [huangcongyu2006@gmail.com])
 AC_CONFIG_HEADER(config.h)
-
-AM_INIT_AUTOMAKE([1.11 dist-bzip2])
-AM_MAINTAINER_MODE()
+AM_INIT_AUTOMAKE([deadbeef], [1.0], [huangcongyu2006@gmail.com])
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
