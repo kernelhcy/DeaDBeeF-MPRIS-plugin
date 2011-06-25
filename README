@@ -1,1 +1,6 @@
 This is the MPRIS plugin of DeaDBeeF music player.
+v1.0
+    Implement the MPRIS v1.0
+    
+    We need the deadbeef gui's help to implement the Raise method.
+    The deedbeef does not support to delete track from the track list.
