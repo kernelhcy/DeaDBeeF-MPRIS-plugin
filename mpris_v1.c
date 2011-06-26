@@ -1,6 +1,7 @@
 #include "mpris_v1.h"
 #include "mpris_common.h"
 #include "introspection_xml.h"
+
 #include <gio/gio.h>
 #include <glib.h>
 #include <glib/gprintf.h>
