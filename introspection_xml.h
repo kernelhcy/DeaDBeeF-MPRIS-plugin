@@ -113,13 +113,13 @@ const gchar xml_v2_root[] =
 "    <method name='Quit'>"
 "    </method>"
 
-"    <property type='b' name='CanQuit' access='read'/>
-"    <property type='b' name='CanRaise' access='read'/>
-"    <property type='b' name='HasTrackList' access='read'/>
-"    <property type='s' name='Identity' access='read'/>
-"    <property type='s' name='DesktopEntry' access='read'/>
-"    <property type='as' name='SupportedUriSchemes' access='read'/>
-"    <property type='as' name='SupportedMimeTypes' access='read'/>
+"    <property type='b' name='CanQuit' access='read'/>"
+"    <property type='b' name='CanRaise' access='read'/>"
+"    <property type='b' name='HasTrackList' access='read'/>"
+"    <property type='s' name='Identity' access='read'/>"
+"    <property type='s' name='DesktopEntry' access='read'/>"
+"    <property type='as' name='SupportedUriSchemes' access='read'/>"
+"    <property type='as' name='SupportedMimeTypes' access='read'/>"
 "</interface>"
 "</node>";
 
@@ -158,8 +158,8 @@ const gchar xml_v2_tracklist[] =
 "        <arg type='o' name='trackId'/>"
 "    </signal>  "
 
-"    <property type='ao' name='Tracks' access='read'/>
-"    <property type='b' name='CanEditTracks' access='read'/>
+"    <property type='ao' name='Tracks' access='read'/>"
+"    <property type='b' name='CanEditTracks' access='read'/>"
 "</interface>"
 "</node>";
 
@@ -193,21 +193,21 @@ const gchar xml_v2_player[] =
 "        <arg type='x' name='position'/>"
 "    </signal>  "
 
-"    <property type='s' name='PlaybackStatus' access='read'/>
-"    <property type='s' name='LoopStatus' access='readwrite'/>
-"    <property type='d' name='Rate' access='readwrite'/>
-"    <property type='b' name='Shuffle' access='readwrite'/>
-"    <property type='a{sv}' name='Metadata' access='read'/>
-"    <property type='d' name='Volume' access='readwrite'/>
-"    <property type='x' name='Position' access='read'/>
-"    <property type='d' name='MinimumRate' access='read'/>
-"    <property type='d' name='MaximumRate' access='read'/>
-"    <property type='b' name='CanGoNext' access='read'/>
-"    <property type='b' name='CanGoPrevious' access='read'/>
-"    <property type='b' name='CanPlay' access='read'/>
-"    <property type='b' name='CanPause' access='read'/>
-"    <property type='b' name='CanSeek' access='read'/>
-"    <property type='b' name='CanControl' access='read'/>
+"    <property type='s' name='PlaybackStatus' access='read'/>"
+"    <property type='s' name='LoopStatus' access='readwrite'/>"
+"    <property type='d' name='Rate' access='readwrite'/>"
+"    <property type='b' name='Shuffle' access='readwrite'/>"
+"    <property type='a{sv}' name='Metadata' access='read'/>"
+"    <property type='d' name='Volume' access='readwrite'/>"
+"    <property type='x' name='Position' access='read'/>"
+"    <property type='d' name='MinimumRate' access='read'/>"
+"    <property type='d' name='MaximumRate' access='read'/>"
+"    <property type='b' name='CanGoNext' access='read'/>"
+"    <property type='b' name='CanGoPrevious' access='read'/>"
+"    <property type='b' name='CanPlay' access='read'/>"
+"    <property type='b' name='CanPause' access='read'/>"
+"    <property type='b' name='CanSeek' access='read'/>"
+"    <property type='b' name='CanControl' access='read'/>"
 "</interface>"
 "</node>";
 
@@ -229,8 +229,8 @@ const gchar xml_v2_playerlist[] =
 "        <arg type='(oss)' name='playlist'/>"
 "    </signal>  "
 
-"    <property type='u' name='PlaylistCount' access='read'/>
-"    <property type='as' name='Orderings' access='read'/>
-"    <property type='b(oss)' name='ActivePlaylist' access='read'/>
-"</interface>"
+"    <property type='u' name='PlaylistCount' access='read'/>"
+"    <property type='as' name='Orderings' access='read'/>"
+"    <property type='b(oss)' name='ActivePlaylist' access='read'/>"
+"</interface>";
 #endif
