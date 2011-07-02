@@ -19,11 +19,6 @@ enum{
     CAN_HAS_TRACKLIST     = 1 << 6
 };
 
-/*
- * Cache the metadata
- */
-static GVariant *curr_metadata = NULL;
-static DB_playItem_t *curr_track = NULL;
 
 struct _DB_mpris_server_v1
 {
@@ -93,178 +88,6 @@ static void handle_root_method_call(GDBusConnection *connection,
                                     , interface_name
                                     , method_name);
     return;
-}
-
-/*
- * Get the meta data of the playing track
- */
-static GVariant* get_metadata(int track_id)
-{
-    DB_playItem_t *track = NULL;
-    if(track_id < 0){
-        track = deadbeef -> streamer_get_playing_track();
-    }else{
-        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
-        track = deadbeef -> plt_get_item_for_idx(
-                                pl, track_id, PL_MAIN);
-        deadbeef -> plt_unref(pl);
-    }
-
-    GVariant *tmp;
-    GVariant *ret = NULL;
-
-    GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
-    if(track == NULL){
-        goto no_track_playing;
-    }
-    
-    if(track == curr_track && curr_metadata != NULL){
-        g_variant_ref(curr_metadata);
-        deadbeef -> pl_item_unref(track);
-        return curr_metadata;
-    }
-
-    if(curr_metadata != NULL){
-        g_variant_unref(curr_metadata);
-    }
-
-    char buf[500];
-    int buf_size = sizeof(buf);
-
-    gchar *uri_str; 
-    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%F");
-    uri_str = g_strdup_printf("file://%s", buf);
-    debug("get_metadata: uri %s\n", uri_str);  
-    g_variant_builder_add (builder, "{sv}", "location", g_variant_new("s"
-                                                , g_strdup(uri_str)));
-    g_free(uri_str);
-
-    gchar *title_str; 
-    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
-    title_str = g_strdup_printf("%s", buf);
-    debug("get_metadata: title %s\n", title_str);
-    g_variant_builder_add(builder, "{sv}", "title", g_variant_new("s"
-                                                , g_strdup(title_str)));
-    g_free(title_str);
-
-    gchar *artist_str; 
-    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%a");
-    artist_str = g_strdup_printf("%s", buf);
-    debug("get_metadata: artist %s\n", artist_str);
-    g_variant_builder_add(builder, "{sv}", "artist", g_variant_new("s"
-                                                , g_strdup(artist_str)));
-    g_free(artist_str);
-   
-    gchar *album_str; 
-    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
-    album_str = g_strdup_printf("%s", buf);
-    debug("get_metadata: album %s\n", album_str);
-    g_variant_builder_add(builder, "{sv}", "album", g_variant_new("s"
-                                                , g_strdup(album_str)));
-    g_free(album_str);
-
-    gint32 duration = (gint32)(deadbeef -> pl_get_item_duration(track));
-    debug("get_metadata: time %d\n", duration);
-    g_variant_builder_add (builder, "{sv}", "time", g_variant_new("i", duration));
-
-    //unref the track item
-    deadbeef -> pl_item_unref(track);
-
-no_track_playing:
-    tmp = g_variant_builder_end(builder);
-
-    /*
-     * We need a tuple containing a array of dict.
-     */
-    GVariantBuilder *ret_builder = g_variant_builder_new(G_VARIANT_TYPE("(a{sv})"));
-    g_variant_builder_add_value(ret_builder, tmp);
-    ret = g_variant_builder_end(ret_builder);
-    g_variant_builder_unref(builder);
-    g_variant_builder_unref(ret_builder);
-
-    //cache the metadata
-    g_variant_ref(ret);
-    curr_metadata = ret;
-    curr_track = track;
-
-    return ret;
-}
-
-/*
- * Set the loop status.
- * @param value 
- *          "None" no loop
- *          "Playlist" loop the play list
- *          "Track" loop the current track
- */
-static void set_loop_status(GVariant *value)
-{    
-    gchar *loop_status;
-    g_variant_get(value, "s", &loop_status);
-
-    if (g_strcmp0(loop_status, "None") == 0) {
-        deadbeef -> conf_set_int("playback.loop", PLAYBACK_MODE_NOLOOP);
-    } else if (g_strcmp0(loop_status, "Playlist") == 0) {
-        deadbeef -> conf_set_int("playback.loop", PLAYBACK_MODE_LOOP_ALL);
-    } else if (g_strcmp0(loop_status, "Track") == 0) {
-        deadbeef -> conf_set_int("playback.loop", PLAYBACK_MODE_LOOP_SINGLE);
-    }
-    deadbeef -> sendmessage(DB_EV_CONFIGCHANGED, 0, 0, 0);
-    return;
-}
-
-/*
- * Get the status of the player.
- */
-static GVariant *get_status()
-{
-    DB_output_t *output = deadbeef -> get_output();
-    int first = 0;
-    switch(output -> state())
-    {
-    case OUTPUT_STATE_PLAYING:
-        first = 0;
-        break;
-    case OUTPUT_STATE_PAUSED:
-        first = 1;
-        break;
-    case OUTPUT_STATE_STOPPED:
-        first = 2;
-        break;
-    default:
-        break;
-    }
-
-    int second = 1;
-    int order = deadbeef -> conf_get_int("playback.order", 0);
-    if(order == PLAYBACK_ORDER_LINEAR){
-        second = 0;
-    }else if(order == PLAYBACK_ORDER_RANDOM){
-        second = 1;
-    }
-
-    int loop = deadbeef -> conf_get_int("playback.loop", 0);
-    int third, forth;
-    switch(loop)
-    {
-    case PLAYBACK_MODE_NOLOOP:
-        third = forth = 0;
-        break;
-    case PLAYBACK_MODE_LOOP_ALL:
-        forth = 1;
-        third = 0;
-        break;
-    case PLAYBACK_MODE_LOOP_SINGLE:
-        forth = 0;
-        third = 1;
-        break;
-    default:
-        forth = 0;
-        third = 0;
-        break;
-    }    
-
-    return g_variant_new("((iiii))" , first, second, third, forth);
 }
 
 /*
@@ -542,81 +365,20 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
     return;
 }
 
-#if 0
-static gboolean handle_set_property(GDBusConnection *connection,
-                                     const gchar *sender,
-                                     const gchar *object_path,
-                                     const gchar *interface_name,
-                                     const gchar*property_name,
-                                     GVariant *value,
-                                     GError **error,
-                                     gpointer user_data)
-{
-
-}
-#endif
-
-/*
- * Signal emit parameter strut.
- */
-typedef struct
-{
-    gpointer data;
-    const gchar *signal_name;
-    const gchar *object_path;
-}SignalPar;
-
-/*
- * The callback of timeout in main loop.
- */
-static gboolean emit_signal_cb(gpointer data)
-{
-    SignalPar *par = data;
-    
-    g_dbus_connection_emit_signal(
-                        server -> con
-                        , NULL
-                        , par -> object_path
-                        , MPRIS_INTERFACE
-                        , par -> signal_name
-                        , par -> data, NULL);
-    g_free(par);
-    return FALSE;
-}
-
-/*
- * Emit a signal of signal_name with data
- */
-void emit_signal(const gchar *obj, const gchar * signal_name, gpointer data)
-{
-    GMainContext *ctx = g_main_context_get_thread_default();
-    if(ctx == NULL){
-        ctx = g_main_context_default();
-    }
-
-    SignalPar *par = g_malloc(sizeof(SignalPar));
-    par -> data = data;
-    par -> signal_name = signal_name;
-    par -> object_path = obj;
-    GSource *src = g_timeout_source_new((guint)0);
-    g_source_set_callback(src, (GSourceFunc)emit_signal_cb, par, NULL);
-    g_source_attach(src, ctx);
-    g_source_unref(src);
-
-}
-
 void DB_mpris_emit_trackchange_v1()
 {
 
     GVariant *metadata = get_metadata(-1);
     debug("emit track change signl.");
-    emit_signal(MPRIS_PLAYER_PATH, MPRIS_SIGNAL_TRACKCHANGE, metadata);
+    emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_PLAYER_PATH
+                    , MPRIS_SIGNAL_TRACKCHANGE, metadata);
 }
 
 void DB_mpris_emit_statuschange_v1()
 {
     debug("emit status change signl.");
-    emit_signal(MPRIS_PLAYER_PATH, MPRIS_SIGNAL_STATUSCHANGE, get_status());
+    emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_PLAYER_PATH
+                    , MPRIS_SIGNAL_STATUSCHANGE, get_status());
 }
 void DB_mpris_emit_capschange_v1()
 {
@@ -639,7 +401,8 @@ void DB_mpris_emit_tracklistchange_v1()
     deadbeef -> pl_item_unref(track);
     GVariant *ret_val = g_variant_new("(i)", track_id + 1);
     debug("emit tracklist change signl.");
-    emit_signal(MPRIS_TRACKLIST_PATH, MPRIS_SIGNAL_TRACKLISTCHAGE, ret_val);
+    emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_TRACKLIST_PATH
+                    , MPRIS_SIGNAL_TRACKLISTCHAGE, ret_val);
 }
 
 /* root vtable */
@@ -670,7 +433,7 @@ static void on_bus_acquired (GDBusConnection *connection,
     //The /Player object implemets org.freedesktop.MediaPalyer interface
     server -> player_reg_id = g_dbus_connection_register_object(
                             connection
-                            , MPRIS_PLAYER_PATH 
+                            , MPRIS_V1_PLAYER_PATH 
                             , server -> introspection_data_player -> interfaces[0]
                             , &player_vtable
                             , NULL      /* user_data */
@@ -681,7 +444,7 @@ static void on_bus_acquired (GDBusConnection *connection,
     //The / object implemets org.freedesktop.MediaPalyer interface
     server -> root_reg_id = g_dbus_connection_register_object(
                             connection
-                            , MPRIS_ROOT_PATH 
+                            , MPRIS_V1_ROOT_PATH 
                             , server -> introspection_data_root -> interfaces[0]
                             , &root_vtable
                             , NULL      /* user_data */
@@ -692,7 +455,7 @@ static void on_bus_acquired (GDBusConnection *connection,
     //The /Tracklist object implemets org.freedesktop.MediaPalyer interface
     server -> tracklist_reg_id = g_dbus_connection_register_object(
                             connection
-                            , MPRIS_TRACKLIST_PATH
+                            , MPRIS_V1_TRACKLIST_PATH
                             , server -> introspection_data_tracklist -> interfaces[0]
                             , &tracklist_vtable
                             , NULL      /* user_data */
@@ -748,7 +511,7 @@ gint DB_mpris_server_start_v1(DB_mpris_server_v1 **srv)
     }
 
     server -> owner_id = g_bus_own_name(G_BUS_TYPE_SESSION
-                                    , MPRIS_SERVICE
+                                    , MPRIS_V1_SERVICE
                                     , G_BUS_NAME_OWNER_FLAGS_NONE
                                     , on_bus_acquired
                                     , on_name_acquired
