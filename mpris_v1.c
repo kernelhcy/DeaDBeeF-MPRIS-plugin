@@ -71,13 +71,10 @@ static void handle_root_method_call(GDBusConnection *connection,
     if(g_strcmp0(method_name, MPRIS_METHOD_QUIT) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
         debug("Quit...");
-        //Stop the mpris server
-        DB_mpris_server_stop_v1(server);
         /*
          * Quit the media player
-         * We will get a Segmentation Fault...
          */
-        deadbeef -> quit();
+        deadbeef -> sendmessage(DB_EV_TERMINATE, 0, 0, 0);
         return;
     }
 
