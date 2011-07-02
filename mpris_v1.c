@@ -57,6 +57,7 @@ static void handle_root_method_call(GDBusConnection *connection,
                                     GDBusMethodInvocation *invocation,
                                     gpointer user_data)
 {
+    debug("/ method: %s", method_name);
     //Identity
     if(g_strcmp0(method_name, MPRIS_METHOD_IDENTITY) == 0){
         gchar identify[100];
@@ -69,8 +70,14 @@ static void handle_root_method_call(GDBusConnection *connection,
     //Quit
     if(g_strcmp0(method_name, MPRIS_METHOD_QUIT) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
-
-        //deadbeef -> quit();
+        debug("Quit...");
+        //Stop the mpris server
+        DB_mpris_server_stop_v1(server);
+        /*
+         * Quit the media player
+         * We will get a Segmentation Fault...
+         */
+        deadbeef -> quit();
         return;
     }
 
