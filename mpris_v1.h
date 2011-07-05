@@ -14,14 +14,6 @@ extern DB_functions_t *deadbeef;
 typedef struct _DB_mpris_server_v1 DB_mpris_server_v1;
 
 /*
- * return status.
- */
-enum{
-	DB_MPRIS_OK,
-	DB_MPRIS_ERROR
-};
-
-/*
  * Start and stop the MPRIS server.
  * Usage:
  * 		db_mpris_server *srv;

@@ -73,7 +73,7 @@ static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
     case DB_EV_SEEKED:
         break;
     case DB_EV_SONGCHANGED:
-        debug("Trach changed.");
+        debug("Track changed.");
         DB_mpris_emit_trackchange_v1();
         break;
     case DB_EV_PLAYLISTCHANGED:
@@ -101,7 +101,7 @@ DB_plugin_t plugin = {
     .version_major = 1,
     .version_minor = 0,
     .id = "mpris",
-    .name = "MPRIS Plugin",
+    .name = "MPRIS Plugin v1 and v2",
     .descr = "Communicate with other application useing D-Bus.",
     .copyright = 
         "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"

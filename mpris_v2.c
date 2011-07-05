@@ -1,4 +1,4 @@
-#include "mpris_v1.h"
+#include "mpris_v2.h"
 #include "mpris_common.h"
 #include "introspection_xml.h"
 
@@ -20,25 +20,27 @@ enum{
 };
 
 
-struct _DB_mpris_server_v1
+struct _DB_mpris_server_v2
 {
     GDBusConnection *con;
 
     GDBusNodeInfo *introspection_data_root;
     GDBusNodeInfo *introspection_data_player;
     GDBusNodeInfo *introspection_data_tracklist;
+    GDBusNodeInfo *introspection_data_playlists;
 
     guint owner_id;
 
     guint root_reg_id;
     guint player_reg_id;
     guint tracklist_reg_id;
+    guint playlists_reg_id;
 };
 
 /*
  * Information. 
  */
-static DB_mpris_server_v1 *server = NULL;
+static DB_mpris_server_v2 *server = NULL;
 
 /*
  * Handle the / object method call
@@ -53,14 +55,6 @@ static void handle_root_method_call(GDBusConnection *connection,
                                     gpointer user_data)
 {
     debug("/ method: %s", method_name);
-    //Identity
-    if(g_strcmp0(method_name, MPRIS_METHOD_IDENTITY) == 0){
-        gchar identify[100];
-        g_sprintf(identify, "DeadBeef %d.%d", deadbeef -> vmajor, deadbeef -> vminor);
-        g_dbus_method_invocation_return_value(invocation
-                            , g_variant_new("(s)", identify));
-        return;
-    }
 
     //Quit
     if(g_strcmp0(method_name, MPRIS_METHOD_QUIT) == 0){
@@ -73,10 +67,9 @@ static void handle_root_method_call(GDBusConnection *connection,
         return;
     }
 
-    //MprisVersion
-    if(g_strcmp0(method_name, MPRIS_METHOD_VERSION) == 0){
-        g_dbus_method_invocation_return_value(invocation
-                        , g_variant_new("((qq))", 1, 0));
+    //Raise
+    if(g_strcmp0(method_name, MPRIS_METHOD_RAISE) == 0){
+        g_dbus_method_invocation_return_value(invocation, NULL);
         return;
     }
 
@@ -109,8 +102,8 @@ static void handle_player_method_call(GDBusConnection *connection,
         goto go_return;
     }
     
-    //Prev
-    if(g_strcmp0(method_name, MPRIS_METHOD_PREV) == 0){
+    //Previous
+    if(g_strcmp0(method_name, MPRIS_METHOD_PREVIOUS) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
         deadbeef -> sendmessage(DB_EV_PREV, 0, 0, 0);
         goto go_return;
@@ -120,6 +113,13 @@ static void handle_player_method_call(GDBusConnection *connection,
     if(g_strcmp0(method_name, MPRIS_METHOD_PLAY) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
         deadbeef -> sendmessage(DB_EV_PLAY_CURRENT, 0, 0, 0);
+        goto go_return;
+    }
+    
+    //PlayPause
+    if(g_strcmp0(method_name, MPRIS_METHOD_PLAYPAUSE) == 0){
+        g_dbus_method_invocation_return_value(invocation, NULL);
+        //deadbeef -> sendmessage(DB_EV_PLAY_CURRENT, 0, 0, 0);
         goto go_return;
     }
     
@@ -142,85 +142,18 @@ static void handle_player_method_call(GDBusConnection *connection,
         goto go_return;
     }
     
-    //Repeat
-    if(g_strcmp0(method_name, MPRIS_METHOD_REPEAT) == 0){
-        gboolean loop;
-        g_variant_get(parameters, "(b)", &loop);
-        if(loop == TRUE){
-            set_loop_status(g_variant_new_string("Track"));
-        }else{
-            set_loop_status(g_variant_new_string("None"));
-        }
-        g_dbus_method_invocation_return_value(invocation, NULL);
-        goto go_return;
-    }
-    
-    GVariant *ret_val = NULL;
-    //GetStatus
-    if(g_strcmp0(method_name, MPRIS_METHOD_GETSTATUS) == 0){
-        g_dbus_method_invocation_return_value(invocation
-                            , get_status());
-        goto go_return;
-    }
-
-    //GetMetadata
-    if(g_strcmp0(method_name, MPRIS_METHOD_GETMETA) == 0){
-        ret_val = get_metadata(-1);
-        g_dbus_method_invocation_return_value(invocation, ret_val);
-        goto go_return;
-    }
-
-    //GetCaps
-    if(g_strcmp0(method_name, MPRIS_METHOD_GETCAPS) == 0){
-        ret_val =  g_variant_new("((i))" , CAN_GO_NEXT | CAN_GO_PREV
-                                           | CAN_PAUSE | CAN_PLAY
-                                           | CAN_SEEK | CAN_PROVIDE_METADATA
-                                           | CAN_HAS_TRACKLIST);
-        g_dbus_method_invocation_return_value(invocation, ret_val);
-        goto go_return;
-    }
-
-    //PositionGet
-    if(g_strcmp0(method_name, MPRIS_METHOD_POSITIONGET) == 0){
-        DB_playItem_t *track = NULL;
-        track = deadbeef -> streamer_get_playing_track();
-        float duration = deadbeef -> pl_get_item_duration(track);
-        float pos = deadbeef -> playback_get_pos(); 
-        //we need ms
-        ret_val =  g_variant_new("(i)", (int)(pos * duration * 10));    
-        g_dbus_method_invocation_return_value(invocation, ret_val);
-
-        deadbeef -> pl_item_unref(track);
-        goto go_return;
-    }
-
-    //PositionSet
-    if(g_strcmp0(method_name, MPRIS_METHOD_POSITIONSET) == 0){
-        int pos = 0;
-        g_variant_get(parameters, "(i)", &pos);
-        debug("Set position %d.", pos);
-        deadbeef -> sendmessage(DB_EV_SEEK, 0, pos, 0);
+    //SetPosition
+    if(g_strcmp0(method_name, MPRIS_METHOD_SETPOSITION) == 0){
+        int trackid=0, pos = 0;
+        g_variant_get(parameters, "(ox)", trackid, &pos);
+        debug("Set %d position %d.", trackid, pos);
         g_dbus_method_invocation_return_value(invocation, NULL);
         goto go_return;
     }
 
-    //VolumeGet
-    if(g_strcmp0(method_name, MPRIS_METHOD_VOLUMEGET) == 0){
-        float min_vol = deadbeef -> volume_get_min_db();
-        float volume = deadbeef -> volume_get_db() - min_vol;
-        debug("Get Volume: %f", volume);
-        ret_val =  g_variant_new("(i)" , (int)(volume / ( - min_vol) * 100));
-        g_dbus_method_invocation_return_value(invocation, ret_val);
-        goto go_return;
-    }
-
-    //VolumeSet
-    if(g_strcmp0(method_name, MPRIS_METHOD_VOLUMESET) == 0){
-        int volume = 0;
-        g_variant_get(parameters, "(i)", &volume);
-        float vol_f = 50 - ((float)volume / (float)100 * (float)50);
-        debug("Set Volume: %d %f", volume, vol_f);
-        deadbeef -> volume_set_db(-vol_f);
+    //OpenUri
+    if(g_strcmp0(method_name, MPRIS_METHOD_OPENURI) == 0){
+        debug("OpenUri:");
         g_dbus_method_invocation_return_value(invocation, NULL);
         goto go_return;
     }
@@ -236,6 +169,7 @@ go_return:
     return;
 }
 
+#if 0
 /*
  * The callback of plt_add_file
  */
@@ -252,7 +186,6 @@ static int add_file_cb(DB_playItem_t *it, void *data) {
     }
     return 0;
 }
-
 
 /*
  * Handle /TrackList object method call
@@ -372,7 +305,7 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
     return;
 }
 
-void DB_mpris_emit_trackchange_v1()
+void DB_mpris_emit_trackchange_v2()
 {
 
     GVariant *metadata = get_metadata(-1);
@@ -381,20 +314,20 @@ void DB_mpris_emit_trackchange_v1()
                     , MPRIS_SIGNAL_TRACKCHANGE, metadata);
 }
 
-void DB_mpris_emit_statuschange_v1()
+void DB_mpris_emit_statuschange_v2()
 {
     debug("emit status change signl.");
     emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_PLAYER_PATH
                     , MPRIS_SIGNAL_STATUSCHANGE, get_status());
 }
-void DB_mpris_emit_capschange_v1()
+void DB_mpris_emit_capschange_v2()
 {
     /*
      * Will NOT change any more!!
      */
 }
 
-void DB_mpris_emit_tracklistchange_v1()
+void DB_mpris_emit_tracklistchange_v2()
 {
     int track_id = 0;
     /*
@@ -411,6 +344,7 @@ void DB_mpris_emit_tracklistchange_v1()
     emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_TRACKLIST_PATH
                     , MPRIS_SIGNAL_TRACKLISTCHAGE, ret_val);
 }
+#endif
 
 /* root vtable */
 static const GDBusInterfaceVTable root_vtable =
@@ -426,6 +360,8 @@ static const GDBusInterfaceVTable player_vtable =
     NULL,
     NULL
 };
+
+#if 0
 /* tracklist vtable */
 static const GDBusInterfaceVTable tracklist_vtable =
 {
@@ -433,6 +369,8 @@ static const GDBusInterfaceVTable tracklist_vtable =
     NULL,
     NULL
 };
+#endif
+
 static void on_bus_acquired (GDBusConnection *connection,
                                  const gchar *name,
                                  gpointer user_data)
@@ -440,7 +378,7 @@ static void on_bus_acquired (GDBusConnection *connection,
     //The /Player object implemets org.freedesktop.MediaPalyer interface
     server -> player_reg_id = g_dbus_connection_register_object(
                             connection
-                            , MPRIS_V1_PLAYER_PATH 
+                            , MPRIS_V2_PATH 
                             , server -> introspection_data_player -> interfaces[0]
                             , &player_vtable
                             , NULL      /* user_data */
@@ -451,7 +389,7 @@ static void on_bus_acquired (GDBusConnection *connection,
     //The / object implemets org.freedesktop.MediaPalyer interface
     server -> root_reg_id = g_dbus_connection_register_object(
                             connection
-                            , MPRIS_V1_ROOT_PATH 
+                            , MPRIS_V2_PATH 
                             , server -> introspection_data_root -> interfaces[0]
                             , &root_vtable
                             , NULL      /* user_data */
@@ -459,6 +397,7 @@ static void on_bus_acquired (GDBusConnection *connection,
                             , NULL);     /* GError** */
     g_assert(server -> root_reg_id > 0);
 
+#if 0
     //The /Tracklist object implemets org.freedesktop.MediaPalyer interface
     server -> tracklist_reg_id = g_dbus_connection_register_object(
                             connection
@@ -469,7 +408,7 @@ static void on_bus_acquired (GDBusConnection *connection,
                             , NULL      /* user_data_free_func */
                             , NULL);     /* GError** */
     g_assert(server -> tracklist_reg_id > 0);
-
+#endif
     server -> con = connection;
 }
 
@@ -488,37 +427,39 @@ static void on_name_lost (GDBusConnection *connection,
 }
 
 
-gint DB_mpris_server_start_v1(DB_mpris_server_v1 **srv)
+gint DB_mpris_server_start_v2(DB_mpris_server_v2 **srv)
 {
     g_type_init();
 
-    server = g_new(DB_mpris_server_v1, 1);
+    server = g_new(DB_mpris_server_v2, 1);
     if(server == NULL){
         debug("Create DB_mpris_server error!!\n");
         return DB_MPRIS_ERROR;
     }
     
     server -> introspection_data_root 
-                        = g_dbus_node_info_new_for_xml(xml_v1_root, NULL);
+                        = g_dbus_node_info_new_for_xml(xml_v2_root, NULL);
     if(server -> introspection_data_root == NULL){
         debug("Create root dbus node info error!! %s %d\n", __FILE__, __LINE__);
         return DB_MPRIS_ERROR;
     }
     server -> introspection_data_player 
-                        = g_dbus_node_info_new_for_xml(xml_v1_player, NULL);
+                        = g_dbus_node_info_new_for_xml(xml_v2_player, NULL);
     if(server -> introspection_data_player == NULL){
         debug("Create player dbus node info error!! %s %d\n", __FILE__, __LINE__);
         return DB_MPRIS_ERROR;
     }
+  
+#if 0
     server -> introspection_data_tracklist 
-                        = g_dbus_node_info_new_for_xml(xml_v1_tracklist, NULL);
+                        = g_dbus_node_info_new_for_xml(xml_v2_tracklist, NULL);
     if(server -> introspection_data_tracklist == NULL){
         debug("Create tracklist dbus node info error!! %s %d\n", __FILE__, __LINE__);
         return DB_MPRIS_ERROR;
     }
-
+#endif
     server -> owner_id = g_bus_own_name(G_BUS_TYPE_SESSION
-                                    , MPRIS_V1_SERVICE
+                                    , MPRIS_V2_SERVICE
                                     , G_BUS_NAME_OWNER_FLAGS_NONE
                                     , on_bus_acquired
                                     , on_name_acquired
@@ -529,16 +470,16 @@ gint DB_mpris_server_start_v1(DB_mpris_server_v1 **srv)
     return DB_MPRIS_OK;
 }
 
-gint DB_mpris_server_stop_v1(DB_mpris_server_v1 *srv)
+gint DB_mpris_server_stop_v2(DB_mpris_server_v2 *srv)
 {
     g_dbus_connection_unregister_object(srv -> con, srv -> root_reg_id);
     g_dbus_connection_unregister_object(srv -> con, srv -> player_reg_id);
-    g_dbus_connection_unregister_object(srv -> con, srv -> tracklist_reg_id);
+//    g_dbus_connection_unregister_object(srv -> con, srv -> tracklist_reg_id);
      
     g_bus_unown_name(srv -> owner_id);
 
     g_dbus_node_info_unref(srv -> introspection_data_root);
-    g_dbus_node_info_unref(srv -> introspection_data_tracklist);
+//    g_dbus_node_info_unref(srv -> introspection_data_tracklist);
     g_dbus_node_info_unref(srv -> introspection_data_player);
 
     g_free(srv);
