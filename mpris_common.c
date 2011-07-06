@@ -93,7 +93,7 @@ GVariant* get_metadata(int track_id)
 
     gint32 duration = (gint32)(deadbeef -> pl_get_item_duration(track));
     debug("get_metadata: time %d\n", duration);
-    g_variant_builder_add (builder, "{sv}", "time", g_variant_new("i", duration));
+    g_variant_builder_add(builder, "{sv}", "time", g_variant_new("i", duration));
 
     //unref the track item
     deadbeef -> pl_item_unref(track);

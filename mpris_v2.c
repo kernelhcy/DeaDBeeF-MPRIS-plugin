@@ -29,6 +29,7 @@ struct _DB_mpris_server_v2
  */
 static DB_mpris_server_v2 *server = NULL;
 
+////////////////////////////  / /////////////////////////////////////////
 /*
  * Handle the / object method call
  */
@@ -70,6 +71,78 @@ static void handle_root_method_call(GDBusConnection *connection,
     return;
 }
 
+/*
+ * Handle root get property
+ */
+static GVariant *handle_root_get_property(GDBusConnection *connection,
+                                        const gchar *sender,
+                                        const gchar *object_path,
+                                        const gchar *interface_name,
+                                        const gchar *property_name,
+                                        GError **error,
+                                        gpointer user_data)
+{
+    GVariant *ret = NULL;
+    if(g_strcmp0(property_name, "CanQuit") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "HasTrackList") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "CanRaise") == 0){
+        ret = g_variant_new_boolean(FALSE);
+    }else if(g_strcmp0(property_name, "Identity") == 0){
+        ret = g_variant_new_string("DeaDBeeF");
+    }else if(g_strcmp0(property_name, "DesktopEntry") == 0){
+        ret = g_variant_new_string("deadbeef");
+    }else if(g_strcmp0(property_name, "SupportedUriSchemes") == 0){
+        GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE("as"));
+        /*
+         * I don't know where to find the supported uri schemes.
+         * These two are found from the gui.
+         */
+        g_variant_builder_add(builder, "s", "file");
+        g_variant_builder_add(builder, "s", "http");
+        ret = g_variant_builder_end(builder);
+        g_variant_builder_unref(builder);
+    }else if(g_strcmp0(property_name, "SupportedMimeTypes") == 0){
+        GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE("as"));
+        /*
+         * I also don't know where to find the supported mime types.
+         */
+        g_variant_builder_add(builder, "s", "application/ogg");
+        g_variant_builder_add(builder, "s", "audio/x-vorbis+ogg");
+        g_variant_builder_add(builder, "s", "audio/x-flac");
+        g_variant_builder_add(builder, "s", "audio/mpeg");
+        ret = g_variant_builder_end(builder);
+    }
+
+
+    return ret;
+}
+
+/*
+ * Handle root set property
+ */
+static gboolean handle_root_set_property(GDBusConnection  *connection,
+                                        const gchar *sender,
+                                        const gchar *object_path,
+                                        const gchar *interface_name,
+                                        const gchar *property_name,
+                                        GVariant *value,
+                                        GError **error,
+                                        gpointer user_data)
+{
+    return TRUE;
+}
+
+/* root vtable */
+static const GDBusInterfaceVTable root_vtable =
+{
+    handle_root_method_call,
+    handle_root_get_property,
+    handle_root_set_property
+};
+
+////////////////////////////  /Player /////////////////////////////////////////
 /*
  * Handle /Player method call
  */
@@ -137,6 +210,7 @@ static void handle_player_method_call(GDBusConnection *connection,
         debug("Set %s position %d.", id, pos);
         /*
          * We NEED to check the object path!.
+         * BUT, we get NULL in id... I don't why...
          */
         deadbeef -> sendmessage(DB_EV_SEEK, 0, pos, 0);
         g_dbus_method_invocation_return_value(invocation, NULL);
@@ -146,8 +220,22 @@ static void handle_player_method_call(GDBusConnection *connection,
 
     //OpenUri
     if(g_strcmp0(method_name, MPRIS_METHOD_OPENURI) == 0){
-        debug("OpenUri:");
+        gchar *uri = NULL;
+        g_variant_get(parameters, "(s)", &uri);
+        debug("OpenUri: %s\n", uri);
+        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+        int ret = deadbeef -> plt_add_file(pl, uri, NULL, NULL);
+        if(ret == 0){
+            //play it.
+            ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+            DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
+            int track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+            deadbeef -> plt_unref(pl);
+            deadbeef -> pl_item_unref(track);
+            deadbeef -> sendmessage(DB_EV_PLAY_NUM, 0, track_id, 0);
+        }
         g_dbus_method_invocation_return_value(invocation, NULL);
+        g_free(uri);
         goto go_return;
     }
 
@@ -339,13 +427,6 @@ void DB_mpris_emit_tracklistchange_v2()
 }
 #endif
 
-/* root vtable */
-static const GDBusInterfaceVTable root_vtable =
-{
-    handle_root_method_call,
-    NULL,
-    NULL
-};
 /* player vtable */
 static const GDBusInterfaceVTable player_vtable =
 {
@@ -368,6 +449,7 @@ static void on_bus_acquired (GDBusConnection *connection,
                                  const gchar *name,
                                  gpointer user_data)
 {
+    GError *err = NULL;
     //The /Player object implemets org.freedesktop.MediaPalyer interface
     server -> player_reg_id = g_dbus_connection_register_object(
                             connection
@@ -376,8 +458,14 @@ static void on_bus_acquired (GDBusConnection *connection,
                             , &player_vtable
                             , NULL      /* user_data */
                             , NULL      /* user_data_free_func */
-                            , NULL);     /* GError** */
-    g_assert(server -> player_reg_id > 0);
+                            , &err);     /* GError** */
+    if(server -> player_reg_id == 0){
+        debug("ERROR! Unable register interface %s on dbus. %s\n"
+                            ,MPRIS_V2_INTERFACE_PLAYER , err -> message);
+        DB_mpris_server_stop_v2(server);
+        g_error_free(err);
+        return;
+    }
 
     //The / object implemets org.freedesktop.MediaPalyer interface
     server -> root_reg_id = g_dbus_connection_register_object(
@@ -387,8 +475,14 @@ static void on_bus_acquired (GDBusConnection *connection,
                             , &root_vtable
                             , NULL      /* user_data */
                             , NULL      /* user_data_free_func */
-                            , NULL);     /* GError** */
-    g_assert(server -> root_reg_id > 0);
+                            , &err);     /* GError** */
+    if(server -> root_reg_id == 0){
+        debug("ERROR! Unable register interface %s on dbus. %s\n"
+                            , MPRIS_V2_INTERFACE_ROOT, err -> message);
+        g_error_free(err);
+        DB_mpris_server_stop_v2(server);
+        return;
+    }
 
 #if 0
     //The /Tracklist object implemets org.freedesktop.MediaPalyer interface
