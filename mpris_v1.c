@@ -244,8 +244,10 @@ static int add_file_cb(DB_playItem_t *it, void *data) {
     if (it != NULL) {
         debug("add_file_cb %d\n", play_imm);
         if (play_imm == TRUE) {
-            int idx = deadbeef -> pl_get_idx_of(it);
+            ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+            int idx = deadbeef -> plt_get_item_idx(pl, it, PL_MAIN);
             deadbeef -> sendmessage(DB_EV_PLAY_NUM, 0, idx, 0);
+            deadbeef -> plt_unref(pl);
         }
     } else {
         debug("add_file_cb NULL\n");
@@ -320,6 +322,20 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
             deadbeef -> sendmessage(DB_EV_PLAYLISTCHANGED, 0, 0, 0);
         }
         
+        if(play){
+            /*
+             * Play the new added track.
+             * I don't know why plt_add_file do not call the add_file_cb.
+             * The track is added at the last of the playlist, so we can play it
+             * using as following.
+             */
+            ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+            DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
+            int track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+            deadbeef -> plt_unref(pl);
+            deadbeef -> pl_item_unref(track);
+            deadbeef -> sendmessage(DB_EV_PLAY_NUM, 0, track_id, 0);
+        }
         g_dbus_method_invocation_return_value(invocation
                                         , g_variant_new("(i)", ret));
         return;

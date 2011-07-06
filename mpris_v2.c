@@ -7,19 +7,6 @@
 #include <glib/gprintf.h>
 #include <stdlib.h>
 
-//caps
-enum{
-    NONE                  = 0,
-    CAN_GO_NEXT           = 1 << 0,
-    CAN_GO_PREV           = 1 << 1,
-    CAN_PAUSE             = 1 << 2,
-    CAN_PLAY              = 1 << 3,
-    CAN_SEEK              = 1 << 4,
-    CAN_PROVIDE_METADATA  = 1 << 5,
-    CAN_HAS_TRACKLIST     = 1 << 6
-};
-
-
 struct _DB_mpris_server_v2
 {
     GDBusConnection *con;
@@ -144,10 +131,16 @@ static void handle_player_method_call(GDBusConnection *connection,
     
     //SetPosition
     if(g_strcmp0(method_name, MPRIS_METHOD_SETPOSITION) == 0){
-        int trackid=0, pos = 0;
-        g_variant_get(parameters, "(ox)", trackid, &pos);
-        debug("Set %d position %d.", trackid, pos);
+        int pos = 0;
+        gchar *id = NULL;
+        g_variant_get(parameters, "(ox)", &id, &pos);
+        debug("Set %s position %d.", id, pos);
+        /*
+         * We NEED to check the object path!.
+         */
+        deadbeef -> sendmessage(DB_EV_SEEK, 0, pos, 0);
         g_dbus_method_invocation_return_value(invocation, NULL);
+        g_free(id);
         goto go_return;
     }
 

@@ -23,11 +23,13 @@
 #include <glib.h>
 
 #include "mpris_v1.h"
+#include "mpris_v2.h"
 #include "mpris_common.h"
 
 DB_functions_t *deadbeef;
 
 DB_mpris_server_v1 *srv_v1 = NULL;
+DB_mpris_server_v2 *srv_v2 = NULL;
 
 GThread *server_thread_id = NULL;
 GMainLoop  *mpris_main_loop = NULL;
@@ -36,6 +38,7 @@ static gpointer server_thread(gpointer data)
 {
     mpris_main_loop = g_main_loop_new(NULL, FALSE);
     DB_mpris_server_start_v1(&srv_v1);
+    DB_mpris_server_start_v2(&srv_v2);
     g_main_loop_run(mpris_main_loop);
     return NULL;
 }
@@ -62,6 +65,7 @@ int mpris_stop (void)
 {    
     debug("MPRIS Stoped....");
     DB_mpris_server_stop_v1(srv_v1);
+    DB_mpris_server_stop_v2(srv_v2);
     g_main_loop_quit(mpris_main_loop);
     return 0;
 }

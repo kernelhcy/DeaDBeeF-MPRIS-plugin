@@ -1,5 +1,5 @@
-#ifndef __MPRIS_SERVER_H_
-#define __MPRIS_SERVER_H_
+#ifndef __MPRIS_SERVER_V1_H_
+#define __MPRIS_SERVER_V1_H_
 #include <glib.h>
 #include <deadbeef/deadbeef.h>
 
