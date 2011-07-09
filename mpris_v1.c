@@ -240,10 +240,10 @@ go_return:
  * The callback of plt_add_file
  */
 static int add_file_cb(DB_playItem_t *it, void *data) {
-    gboolean play_imm = (gboolean)data;
+    gboolean *play_imm = (gboolean*)data;
     if (it != NULL) {
         debug("add_file_cb %d\n", play_imm);
-        if (play_imm == TRUE) {
+        if (*play_imm == TRUE) {
             ddb_playlist_t *pl = deadbeef -> plt_get_curr();
             int idx = deadbeef -> plt_get_item_idx(pl, it, PL_MAIN);
             deadbeef -> sendmessage(DB_EV_PLAY_NUM, 0, idx, 0);
@@ -252,6 +252,7 @@ static int add_file_cb(DB_playItem_t *it, void *data) {
     } else {
         debug("add_file_cb NULL\n");
     }
+    g_free(play_imm);
     return 0;
 }
 
@@ -309,9 +310,11 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
     //AddTrack
     if(g_strcmp0(method_name, MPRIS_METHOD_ADDTRACK) == 0){
         const char *uri;
-        gboolean play;
-        g_variant_get (parameters, "(sb)", &uri, &play);
-        debug("Add Track: %s %d", uri, play);
+        gboolean *play, playnow;
+        play = g_malloc(sizeof(gboolean));
+        g_variant_get (parameters, "(sb)", &uri, play);
+        playnow = *play;
+        debug("Add Track: %s %d", uri, *play);
         ddb_playlist_t *pl = deadbeef -> plt_get_curr();
         /*
          * !!add_file_cb can NOT be called...
@@ -321,8 +324,8 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
         if (ret == 0) {
             deadbeef -> sendmessage(DB_EV_PLAYLISTCHANGED, 0, 0, 0);
         }
-        
-        if(play){
+
+        if(playnow){
             /*
              * Play the new added track.
              * I don't know why plt_add_file do not call the add_file_cb.
