@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <gio/gio.h>
 #include <glib/gprintf.h>
+#include <glib.h>
 
 /*
  * Debug
@@ -54,6 +55,7 @@ GVariant* get_metadata(int track_id)
 
     if(curr_metadata != NULL){
         g_variant_unref(curr_metadata);
+        curr_metadata = NULL;
     }
 
     char buf[500];
@@ -64,34 +66,22 @@ GVariant* get_metadata(int track_id)
     uri_str = g_strdup_printf("file://%s", buf);
     debug("get_metadata: uri %s\n", uri_str);  
     g_variant_builder_add (builder, "{sv}", "location", g_variant_new("s"
-                                                , g_strdup(uri_str)));
+                                                , uri_str));
     g_free(uri_str);
 
-    gchar *title_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
-    title_str = g_strdup_printf("%s", buf);
-    debug("get_metadata: title %s\n", title_str);
-    g_variant_builder_add(builder, "{sv}", "title", g_variant_new("s"
-                                                , g_strdup(title_str)));
-    g_free(title_str);
+    debug("get_metadata: title %s\n", buf);
+    g_variant_builder_add(builder, "{sv}", "title", g_variant_new("s", buf));
 
-    gchar *artist_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%a");
-    artist_str = g_strdup_printf("%s", buf);
-    debug("get_metadata: artist %s\n", artist_str);
-    g_variant_builder_add(builder, "{sv}", "artist", g_variant_new("s"
-                                                , g_strdup(artist_str)));
-    g_free(artist_str);
+    debug("get_metadata: artist %s\n", buf);
+    g_variant_builder_add(builder, "{sv}", "artist", g_variant_new("s", buf));
    
-    gchar *album_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
-    album_str = g_strdup_printf("%s", buf);
-    debug("get_metadata: album %s\n", album_str);
-    g_variant_builder_add(builder, "{sv}", "album", g_variant_new("s"
-                                                , g_strdup(album_str)));
-    g_free(album_str);
+    debug("get_metadata: album %s\n", buf);
+    g_variant_builder_add(builder, "{sv}", "album", g_variant_new("s", buf));
 
-    gint32 duration = (gint32)(deadbeef -> pl_get_item_duration(track));
+    gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
     debug("get_metadata: time %d\n", duration);
     g_variant_builder_add(builder, "{sv}", "time", g_variant_new("i", duration));
 
@@ -118,6 +108,99 @@ no_track_playing:
     return ret;
 }
 
+/*
+ * Get the meta data of the playing track of MPRIS V2
+ */
+GVariant* get_metadata_v2(int track_id)
+{
+    DB_playItem_t *track = NULL;
+    int id;
+    ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+    if(track_id < 0){
+        track = deadbeef -> streamer_get_playing_track();
+        id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+    }else{
+        track = deadbeef -> plt_get_item_for_idx(
+                                pl, track_id, PL_MAIN);
+        id = track_id;
+    }
+    deadbeef -> plt_unref(pl);
+
+    GVariant *tmp;
+    GVariant *ret = NULL;
+
+    GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
+    if(track == NULL){
+        goto no_track_playing;
+    }
+    
+    char buf[500];
+    int buf_size = sizeof(buf);
+
+    g_sprintf(buf, "%d", id);
+    debug("get_metadata_v2: mpris:trackid %s\n", buf);
+    g_variant_builder_add (builder, "{sv}", "mpris:trackid", g_variant_new("s"
+                                                , buf));
+
+    gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
+    debug("get_metadata: length %d\n", duration);  
+    g_variant_builder_add (builder, "{sv}", "mpris:length", g_variant_new("x"
+                                                , (gint64)duration));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
+    debug("get_metadata: album %s\n", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:album", g_variant_new("s"
+                                                , buf));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%a");
+    debug("get_metadata: artist %s\n", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:artist", g_variant_new("s"
+                                                , buf));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
+    debug("get_metadata: tile %s\n", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:tile", g_variant_new("s"
+                                                , buf));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%B");
+    debug("get_metadata: albumArtist %s\n", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:albumArtist"
+                                , g_variant_new("s", buf));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%g");
+    debug("get_metadata: genre %s\n", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:genre", g_variant_new("s"
+                                                , buf));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%c");
+    debug("get_metadata: comment %s\n", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:comment", g_variant_new("s"
+                                                , buf));
+
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%F");
+    gchar *fullurl = g_strdup_printf("file://%s", buf);
+    debug("get_metadata: url %s\n", fullurl);  
+    g_variant_builder_add (builder, "{sv}", "xesam:url", g_variant_new("s"
+                                                , fullurl));
+    g_free(fullurl);
+
+    //unref the track item
+    deadbeef -> pl_item_unref(track);
+
+no_track_playing:
+    tmp = g_variant_builder_end(builder);
+
+    /*
+     * We need a tuple containing a array of dict.
+     */
+    GVariantBuilder *ret_builder = g_variant_builder_new(G_VARIANT_TYPE("(a{sv})"));
+    g_variant_builder_add_value(ret_builder, tmp);
+    ret = g_variant_builder_end(ret_builder);
+    g_variant_builder_unref(builder);
+    g_variant_builder_unref(ret_builder);
+
+    return ret;
+}
 /*
  * Set the loop status.
  * @param value 

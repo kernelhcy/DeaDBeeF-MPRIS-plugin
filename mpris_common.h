@@ -113,4 +113,5 @@ void set_loop_status(GVariant *value);
  * Get the meta data of the playing track
  */
 GVariant* get_metadata(int track_id);
+GVariant* get_metadata_v2(int track_id);
 #endif

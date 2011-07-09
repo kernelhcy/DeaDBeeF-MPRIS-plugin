@@ -119,27 +119,12 @@ static GVariant *handle_root_get_property(GDBusConnection *connection,
     return ret;
 }
 
-/*
- * Handle root set property
- */
-static gboolean handle_root_set_property(GDBusConnection  *connection,
-                                        const gchar *sender,
-                                        const gchar *object_path,
-                                        const gchar *interface_name,
-                                        const gchar *property_name,
-                                        GVariant *value,
-                                        GError **error,
-                                        gpointer user_data)
-{
-    return TRUE;
-}
-
 /* root vtable */
 static const GDBusInterfaceVTable root_vtable =
 {
     handle_root_method_call,
     handle_root_get_property,
-    handle_root_set_property
+    NULL
 };
 
 ////////////////////////////  /Player /////////////////////////////////////////
@@ -250,6 +235,116 @@ go_return:
     return;
 }
 
+/*
+ * Handle player get property
+ */
+static GVariant *handle_player_get_property(GDBusConnection *connection,
+                                        const gchar *sender,
+                                        const gchar *object_path,
+                                        const gchar *interface_name,
+                                        const gchar *property_name,
+                                        GError **error,
+                                        gpointer user_data)
+{
+    GVariant *ret = NULL;
+    if(g_strcmp0(property_name, "PlaybackStatus") == 0){
+        DB_output_t *output = deadbeef -> get_output();
+        switch(output -> state())
+        {
+        case OUTPUT_STATE_PLAYING:
+            ret = g_variant_new_string("Playing");
+            break;
+        case OUTPUT_STATE_PAUSED:
+            ret = g_variant_new_string("Paused");
+            break;
+        case OUTPUT_STATE_STOPPED:
+            ret = g_variant_new_string("Stopped");
+            break;
+        default:
+            ret = g_variant_new_string("UnknonwPlaybackStatus");
+            break;
+        }
+    }else if(g_strcmp0(property_name, "LoopStatus") == 0){
+        int loop = deadbeef -> conf_get_int("playback.loop", 0);
+        switch(loop)
+        {
+        case PLAYBACK_MODE_NOLOOP:
+            ret = g_variant_new_string("None");
+            break;
+        case PLAYBACK_MODE_LOOP_ALL:
+            ret = g_variant_new_string("Playlist");
+            break;
+        case PLAYBACK_MODE_LOOP_SINGLE:
+            ret = g_variant_new_string("Track");
+            break;
+        default:
+            ret = g_variant_new_string("UnknownLoopStatus");
+            break;
+        }    
+
+    }else if(g_strcmp0(property_name, "Rate") == 0){
+        ret = g_variant_new("d", 1.0);
+    }else if(g_strcmp0(property_name, "Shuffle") == 0){
+        int order = deadbeef -> conf_get_int("playback.order", 0);
+        if(order == PLAYBACK_ORDER_LINEAR){
+            ret = g_variant_new_boolean(FALSE);
+        }else if(order == PLAYBACK_ORDER_RANDOM){
+            ret = g_variant_new_boolean(TRUE);
+        }   
+    }else if(g_strcmp0(property_name, "Metadata") == 0){
+        ret = get_metadata_v2(-1);
+    }else if(g_strcmp0(property_name, "Volume") == 0){
+        float min_vol = deadbeef -> volume_get_min_db();
+        float volume = deadbeef -> volume_get_db() - min_vol;
+        debug("Get Volume: %f", volume);
+        ret =  g_variant_new("(d)" , volume / ( - min_vol) * 100);
+    }else if(g_strcmp0(property_name, "Position") == 0){
+        DB_playItem_t *track = NULL;
+        track = deadbeef -> streamer_get_playing_track();
+        float duration = deadbeef -> pl_get_item_duration(track);
+        float pos = deadbeef -> playback_get_pos(); 
+        ret =  g_variant_new("(x)", (gint64)(pos * duration * 10));    
+        deadbeef -> pl_item_unref(track);
+    }else if(g_strcmp0(property_name, "MinimumRate") == 0){
+        ret = g_variant_new("d", 1.0);
+    }else if(g_strcmp0(property_name, "MaximumRate") == 0){
+        ret = g_variant_new("d", 1.0);
+    }else if(g_strcmp0(property_name, "CanGoNext") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "CanGoPrevious") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "CanPlay") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "CanPause") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "CanSeek") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }else if(g_strcmp0(property_name, "CanControl") == 0){
+        ret = g_variant_new_boolean(TRUE);
+    }
+
+    return ret;
+}
+
+static gboolean handle_player_set_property(GDBusConnection  *connection,
+                                        const gchar *sender,
+                                        const gchar *object_path,
+                                        const gchar *interface_name,
+                                        const gchar *property_name,
+                                        GVariant *value,
+                                        GError **error,
+                                        gpointer user_data)
+{
+    return TRUE;
+}
+
+/* player vtable */
+static const GDBusInterfaceVTable player_vtable =
+{
+    handle_player_method_call,
+    handle_player_get_property,
+    handle_player_set_property
+};
 #if 0
 /*
  * The callback of plt_add_file
@@ -427,13 +522,6 @@ void DB_mpris_emit_tracklistchange_v2()
 }
 #endif
 
-/* player vtable */
-static const GDBusInterfaceVTable player_vtable =
-{
-    handle_player_method_call,
-    NULL,
-    NULL
-};
 
 #if 0
 /* tracklist vtable */
