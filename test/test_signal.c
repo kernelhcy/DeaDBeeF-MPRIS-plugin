@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <gio/gio.h>
 #include <glib.h>
+#include <glib/gprintf.h>
 
 static GMainLoop *loop = NULL;
 static char **args = NULL;
@@ -11,7 +12,7 @@ static void print_properties (GDBusProxy *proxy)
     gchar **property_names;
     guint n;
 
-    g_print ("    properties:\n");
+    g_printf ("    properties:\n");
 
     property_names = g_dbus_proxy_get_cached_property_names (proxy);
     for (n = 0; property_names != NULL && property_names[n] != NULL; n++){
@@ -20,7 +21,7 @@ static void print_properties (GDBusProxy *proxy)
         gchar *value_str;
         value = g_dbus_proxy_get_cached_property (proxy, key);
         value_str = g_variant_print (value, TRUE);
-        g_print ("      %s -> %s\n", key, value_str);
+        g_printf ("      %s -> %s\n", key, value_str);
         g_variant_unref (value);
         g_free (value_str);
     }
@@ -42,12 +43,12 @@ static void on_properties_changed (GDBusProxy          *proxy,
         const gchar *key;
         GVariant *value;
 
-        g_print (" *** Properties Changed:\n");
+        g_printf (" *** Properties Changed:\n");
         g_variant_get (changed_properties, "a{sv}", &iter);
         while (g_variant_iter_loop (iter, "{&sv}", &key, &value)){
             gchar *value_str;
             value_str = g_variant_print (value, TRUE);
-            g_print ("      %s -> %s\n", key, value_str);
+            g_printf ("      %s -> %s\n", key, value_str);
             g_free (value_str);
         }
         g_variant_iter_free (iter);
@@ -55,10 +56,10 @@ static void on_properties_changed (GDBusProxy          *proxy,
 
     if (g_strv_length ((GStrv) invalidated_properties) > 0){
         guint n;
-        g_print (" *** Properties Invalidated:\n");
+        g_printf (" *** Properties Invalidated:\n");
         for (n = 0; invalidated_properties[n] != NULL; n++){
             const gchar *key = invalidated_properties[n];
-            g_print ("      %s\n", key);
+            g_printf ("      %s\n", key);
         }
     }
 }
@@ -72,7 +73,7 @@ static void on_signal (GDBusProxy *proxy,
     gchar *parameters_str;
 
     parameters_str = g_variant_print (parameters, TRUE);
-    g_print (" *** Received Signal: %s: %s\n",
+    g_printf (" *** Received Signal: %s: %s\n",
                             signal_name, parameters_str);
     g_free (parameters_str);
 }
@@ -84,7 +85,7 @@ static void print_proxy (GDBusProxy *proxy)
     name_owner = g_dbus_proxy_get_name_owner (proxy);
     if (name_owner != NULL)
     {
-        g_print ("+++ Proxy object points to remote object owned by %s\n"
+        g_printf ("+++ Proxy object points to remote object owned by %s\n"
                "    bus:          %s\n"
                "    name:         %s\n"
                "    object path:  %s\n"
@@ -98,7 +99,7 @@ static void print_proxy (GDBusProxy *proxy)
     }
     else
     {
-        g_print ("--- Proxy object is inert - there is no name owner for the name\n"
+        g_printf ("--- Proxy object is inert - there is no name owner for the name\n"
                "    bus:          %s\n"
                "    name:         %s\n"
                "    object path:  %s\n"
@@ -121,7 +122,10 @@ static void on_name_owner_notify (GObject    *object,
 
 int main(int argc, char **argv)
 {
-    printf("test signal. \n");
+    if(argc < 4){
+        g_printf("Usage: test_signal name object interface \n");
+        return 0;
+    }
     args = argv;
     GError *error;
     GDBusProxy *proxy;
@@ -142,7 +146,7 @@ int main(int argc, char **argv)
                                          NULL, /* GCancellable */
                                          &error);
     if(proxy == NULL){
-        g_printerr ("Error creating proxy: %s\n", error->message);
+        g_printf("Error creating proxy: %s\n", error->message);
         g_error_free (error);
         goto out;
     }
