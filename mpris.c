@@ -73,6 +73,7 @@ int mpris_stop (void)
 static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) 
 {
     ddb_event_playpos_t *pp = NULL; 
+
     switch(id)
     {
     case DB_EV_SEEKED:
@@ -86,12 +87,14 @@ static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
     case DB_EV_PLAYLISTCHANGED:
         debug("Playlist changed.");
         DB_mpris_emit_tracklistchange_v1();
+        break;
     case DB_EV_SONGSTARTED:
     case DB_EV_CONFIGCHANGED:
     case DB_EV_PAUSED:
     case DB_EV_TOGGLE_PAUSE:
     case DB_EV_STOP:
         DB_mpris_emit_statuschange_v1();
+        break;
     default:
         break;
     }
