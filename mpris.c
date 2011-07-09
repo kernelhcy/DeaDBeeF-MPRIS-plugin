@@ -72,9 +72,12 @@ int mpris_stop (void)
 
 static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) 
 {
+    ddb_event_playpos_t *pp = NULL; 
     switch(id)
     {
     case DB_EV_SEEKED:
+        pp = (ddb_event_playpos_t*)ctx;
+        DB_mpris_emit_seeked_v2((gint64)(pp -> playpos * 1000.0));
         break;
     case DB_EV_SONGCHANGED:
         debug("Track changed.");

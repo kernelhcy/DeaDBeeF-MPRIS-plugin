@@ -1,0 +1,12 @@
+v1.5
+	1. Repaire the bug that Quit causes SEGFAULT
+	2. Repaire that AddTrack can not play the track that is added.
+	3. Implement PositionGet and PositionSet
+	4. Repaire other bugs.
+
+v1.0
+	1. Implement most main interface of MPRIS v1.
+	2. DelTrack need the support of DeaDBeeF. We do not implement it.
+	3. Raise need the support of the gui. We do not implement it.
+	4. AddTrack can not play the track at once. The DeaDBeeF's plt_add_file function may have a bug.
+	5. Quit will cause SEGFAULT.

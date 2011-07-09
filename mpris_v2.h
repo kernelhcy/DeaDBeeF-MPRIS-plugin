@@ -28,9 +28,6 @@ gint DB_mpris_server_stop_v2(DB_mpris_server_v2 *srv);
 /*
  * emit the signal
  */
-void DB_mpris_emit_trackchange_v2();
-void DB_mpris_emit_statuschange_v2();
-void DB_mpris_emit_capschange_v2();
-
 void DB_mpris_emit_tracklistchange_v2();
+void DB_mpris_emit_seeked_v2(gint64 seeked);
 #endif

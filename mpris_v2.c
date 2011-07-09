@@ -335,7 +335,41 @@ static gboolean handle_player_set_property(GDBusConnection  *connection,
                                         GError **error,
                                         gpointer user_data)
 {
+    if(g_strcmp0(property_name, "LoopStatus") == 0){
+        set_loop_status(value);
+    }else if(g_strcmp0(property_name, "Rate") == 0){
+        /*
+         * Not supported!
+         */
+        debug("Not supported Rate!!\n");
+    }else if(g_strcmp0(property_name, "Shuffle") == 0){
+        gboolean random;
+        g_variant_get(value, "b", &random);
+        if(random == FALSE){
+            deadbeef -> conf_set_int("playback.order", PLAYBACK_ORDER_LINEAR);
+        }else{
+            deadbeef -> conf_set_int("playback.order", PLAYBACK_ORDER_RANDOM);
+        }
+        deadbeef -> sendmessage(DB_EV_CONFIGCHANGED, 0, 0, 0);
+    }else if(g_strcmp0(property_name, "Volume") == 0){
+        double volume = 0;
+        g_variant_get(value, "d", &volume);
+        if(volume > 100.0){
+            volume = 100.0;
+        }
+        float vol_f = 50 - ((float)volume / 100.0 * 50.0);
+        debug("Set Volume: %f %f", volume, vol_f);
+        deadbeef -> volume_set_db(-vol_f);
+    }
     return TRUE;
+}
+
+void DB_mpris_emit_seeked_v2(gint64 seeked)
+{
+    debug("emit status seeked signl. %d", seeked);
+    GVariant *ret = g_variant_new("(x)", seeked);
+    emit_signal(server -> con, MPRIS_V2_INTERFACE_PLAYER, MPRIS_V2_PATH
+                    , MPRIS_SIGNAL_SEEKED, ret);
 }
 
 /* player vtable */
