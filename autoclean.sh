@@ -5,5 +5,7 @@ rm -rf configure\
        config.h.in\
        autom4te.cache\
        aclocal.m4\
-       build-aux
+       build-aux\
+       test/.deps\
+       test/Makefile.in
 

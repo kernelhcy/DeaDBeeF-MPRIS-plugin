@@ -11,3 +11,4 @@ mpris_la_LIBADD = $(LDADD) $(MPRIS_LIBS)
 AM_CFLAGS = $(CFLAGS) $(MPRIS_CFLAGS) -std=c99 -Wall -Werror \
                 -I/usr/local/include
 ACLOCAL_AMFLAGS = -I m4
+SUBDIRS=test
