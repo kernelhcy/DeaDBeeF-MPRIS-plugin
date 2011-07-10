@@ -422,6 +422,14 @@ void DB_mpris_emit_tracklistchange_v1()
      */
     ddb_playlist_t *pl = deadbeef -> plt_get_curr();
     DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
+    if(track == NULL){
+        /*
+         * If the playlist is empty, plt_get_last will return NULL.
+         * pl_item_unref will NOT check the parmeter, so we must check it here.
+         */
+        deadbeef -> plt_unref(pl);
+        return;
+    }
     track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
     deadbeef -> plt_unref(pl);
     deadbeef -> pl_item_unref(track);
