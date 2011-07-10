@@ -249,6 +249,14 @@ static GVariant *handle_player_get_property(GDBusConnection *connection,
     GVariant *ret = NULL;
     if(g_strcmp0(property_name, "PlaybackStatus") == 0){
         DB_output_t *output = deadbeef -> get_output();
+        /*
+         * issue 2
+         * I don't know why get_output will return NULL on his computer.
+         * I can not reproduce this bug...
+         */
+        if(output == NULL){
+            return g_variant_new_string("Stopped");
+        }
         switch(output -> state())
         {
         case OUTPUT_STATE_PLAYING:
