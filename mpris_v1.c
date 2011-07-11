@@ -133,7 +133,11 @@ static void handle_player_method_call(GDBusConnection *connection,
     //Pause
     if(g_strcmp0(method_name, MPRIS_METHOD_PAUSE) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
-        int state = deadbeef->get_output()->state();
+        DB_output_t *op = deadbeef -> get_output();
+        if(op == NULL){
+            return;
+        }
+        int state = op -> state();
         if (state == OUTPUT_STATE_PLAYING){
             deadbeef->sendmessage(DB_EV_PAUSE, 0, 0, 0);
         }else{
@@ -184,13 +188,16 @@ static void handle_player_method_call(GDBusConnection *connection,
     if(g_strcmp0(method_name, MPRIS_METHOD_POSITIONGET) == 0){
         DB_playItem_t *track = NULL;
         track = deadbeef -> streamer_get_playing_track();
-        float duration = deadbeef -> pl_get_item_duration(track);
-        float pos = deadbeef -> playback_get_pos(); 
-        //we need ms
-        ret_val =  g_variant_new("(i)", (int)(pos * duration * 10));    
+        if(track == NULL){
+            ret_val =  g_variant_new("(i)", 0);    
+        }else{
+            float duration = deadbeef -> pl_get_item_duration(track);
+            float pos = deadbeef -> playback_get_pos(); 
+            //we need ms
+            ret_val =  g_variant_new("(i)", (int)(pos * duration * 10));    
+            deadbeef -> pl_item_unref(track);
+        }
         g_dbus_method_invocation_return_value(invocation, ret_val);
-
-        deadbeef -> pl_item_unref(track);
         goto go_return;
     }
 
@@ -281,11 +288,16 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
     //GetCurrentTrack
     if(g_strcmp0(method_name, MPRIS_METHOD_GETCURRENTTRACK) == 0){
         int track_id = 0;
+        GVariant *ret_val = NULL;
         DB_playItem_t *track = deadbeef -> streamer_get_playing_track();
-        ddb_playlist_t *pl = deadbeef -> plt_get_curr();
-        track_id = deadbeef -> plt_get_item_idx(pl ,track, PL_MAIN);
-        deadbeef -> plt_unref(pl);
-        GVariant *ret_val = g_variant_new("(i)", track_id);
+        if(track == NULL){
+            ret_val = g_variant_new("(i)", -1);
+        }else{
+            ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+            track_id = deadbeef -> plt_get_item_idx(pl ,track, PL_MAIN);
+            deadbeef -> plt_unref(pl);
+            ret_val = g_variant_new("(i)", track_id);
+        }
         g_dbus_method_invocation_return_value(invocation, ret_val);
         return;
     }
@@ -293,16 +305,21 @@ static void handle_tracklist_method_call(GDBusConnection *connection,
     //GetLength
     if(g_strcmp0(method_name, MPRIS_METHOD_GETLENGTH) == 0){
         int track_id = 0;
+        GVariant *ret_val = NULL;
         /*
          * We use the index of the last track to calculate the length
          * of the play list.
          */
         ddb_playlist_t *pl = deadbeef -> plt_get_curr();
         DB_playItem_t *track = deadbeef -> plt_get_last(pl, PL_MAIN);
-        track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+        if(track == NULL){
+            ret_val = g_variant_new("(i)", 0);
+        }else{
+            track_id = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+            deadbeef -> pl_item_unref(track);
+            ret_val = g_variant_new("(i)", track_id + 1);
+        }
         deadbeef -> plt_unref(pl);
-        deadbeef -> pl_item_unref(track);
-        GVariant *ret_val = g_variant_new("(i)", track_id + 1);
         g_dbus_method_invocation_return_value(invocation, ret_val);
         return;
     }

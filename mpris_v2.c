@@ -164,7 +164,7 @@ static void handle_player_method_call(GDBusConnection *connection,
     //PlayPause
     if(g_strcmp0(method_name, MPRIS_METHOD_PLAYPAUSE) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
-        //deadbeef -> sendmessage(DB_EV_PLAY_CURRENT, 0, 0, 0);
+        deadbeef -> sendmessage(DB_EV_TOGGLE_PAUSE, 0, 0, 0);
         goto go_return;
     }
     
@@ -178,12 +178,7 @@ static void handle_player_method_call(GDBusConnection *connection,
     //Pause
     if(g_strcmp0(method_name, MPRIS_METHOD_PAUSE) == 0){
         g_dbus_method_invocation_return_value(invocation, NULL);
-        int state = deadbeef->get_output()->state();
-        if (state == OUTPUT_STATE_PLAYING){
-            deadbeef->sendmessage(DB_EV_PAUSE, 0, 0, 0);
-        }else{
-            deadbeef->sendmessage(DB_EV_PLAY_CURRENT, 0, 0, 0);
-        }
+        deadbeef->sendmessage(DB_EV_PAUSE, 0, 0, 0);
         goto go_return;
     }
     
@@ -309,10 +304,14 @@ static GVariant *handle_player_get_property(GDBusConnection *connection,
     }else if(g_strcmp0(property_name, "Position") == 0){
         DB_playItem_t *track = NULL;
         track = deadbeef -> streamer_get_playing_track();
-        float duration = deadbeef -> pl_get_item_duration(track);
-        float pos = deadbeef -> playback_get_pos(); 
-        ret =  g_variant_new("(x)", (gint64)(pos * duration * 10));    
-        deadbeef -> pl_item_unref(track);
+        if(track == NULL){
+            ret =  g_variant_new("(x)", 0);    
+        }else{
+            float duration = deadbeef -> pl_get_item_duration(track);
+            float pos = deadbeef -> playback_get_pos(); 
+            ret =  g_variant_new("(x)", (gint64)(pos * duration * 10));    
+            deadbeef -> pl_item_unref(track);
+        }
     }else if(g_strcmp0(property_name, "MinimumRate") == 0){
         ret = g_variant_new("d", 1.0);
     }else if(g_strcmp0(property_name, "MaximumRate") == 0){
@@ -350,6 +349,7 @@ static gboolean handle_player_set_property(GDBusConnection  *connection,
          * Not supported!
          */
         debug("Not supported Rate!!\n");
+        return TRUE;
     }else if(g_strcmp0(property_name, "Shuffle") == 0){
         gboolean random;
         g_variant_get(value, "b", &random);
@@ -369,6 +369,13 @@ static gboolean handle_player_set_property(GDBusConnection  *connection,
         debug("Set Volume: %f %f", volume, vol_f);
         deadbeef -> volume_set_db(-vol_f);
     }
+    /*
+     * Emit the org.freedesktop.DBus.Properties.PropertiesChanged signal
+     */
+    GVariant *sigpar = g_variant_new("(v)", value);
+    debug("Emit PropertiesChanges signal\n");
+    emit_signal(server -> con, "org.freedesktop.DBus.Properties", MPRIS_V2_PATH
+                    , "PropertiesChanged", sigpar);
     return TRUE;
 }
 
