@@ -1,3 +1,8 @@
+v2.0:
+    1. Implement interface org.mpris.MediaPlayer2
+	2. Implement interface org.mpris.MediaPlayer2.Player
+	3. Fix some bugs.
+
 v1.5
 	1. Repaire the bug that Quit causes SEGFAULT
 	2. Repaire that AddTrack can not play the track that is added.
