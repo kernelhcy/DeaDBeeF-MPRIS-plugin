@@ -184,24 +184,32 @@ static void handle_player_method_call(GDBusConnection *connection,
     
     //SetPosition
     if(g_strcmp0(method_name, MPRIS_METHOD_SETPOSITION) == 0){
-        int pos = 0;
-        gchar *id = NULL;
-        g_variant_get(parameters, "(ox)", &id, &pos);
-        debug("Set %s position %d.", id, pos);
-        /*
-         * We NEED to check the object path!.
-         * BUT, we get NULL in id... I don't why...
-         */
-        deadbeef -> sendmessage(DB_EV_SEEK, 0, pos, 0);
+        gint64 pos = 0;
+        const gchar *trackid = NULL;
+        g_variant_get(parameters, "(&ox)", &trackid, &pos);
+        debug("Set %s position %d.", trackid, pos);
+        
+        DB_playItem_t *track = deadbeef -> streamer_get_playing_track();
+        if(track != NULL){
+            ddb_playlist_t *pl = deadbeef -> plt_get_curr();
+            gint playid = deadbeef -> plt_get_item_idx(pl, track, PL_MAIN);
+            gchar buf[200];
+            g_sprintf(buf, "/org/mpris/MediaPlayer2/Track/track%d", playid);
+            if(g_strcmp0(buf, trackid) == 0){
+                deadbeef -> sendmessage(DB_EV_SEEK, 0, pos, 0);
+            }
+            deadbeef -> pl_item_unref(track);
+            deadbeef -> plt_unref(pl);
+        }
+        
         g_dbus_method_invocation_return_value(invocation, NULL);
-        g_free(id);
         goto go_return;
     }
 
     //OpenUri
     if(g_strcmp0(method_name, MPRIS_METHOD_OPENURI) == 0){
-        gchar *uri = NULL;
-        g_variant_get(parameters, "(s)", &uri);
+        const gchar *uri = NULL;
+        g_variant_get(parameters, "(&s)", &uri);
         debug("OpenUri: %s\n", uri);
         ddb_playlist_t *pl = deadbeef -> plt_get_curr();
         int ret = deadbeef -> plt_add_file(pl, uri, NULL, NULL);
@@ -215,7 +223,6 @@ static void handle_player_method_call(GDBusConnection *connection,
             deadbeef -> sendmessage(DB_EV_PLAY_NUM, 0, track_id, 0);
         }
         g_dbus_method_invocation_return_value(invocation, NULL);
-        g_free(uri);
         goto go_return;
     }
 

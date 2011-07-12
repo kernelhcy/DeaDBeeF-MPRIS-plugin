@@ -137,9 +137,9 @@ GVariant* get_metadata_v2(int track_id)
     char buf[500];
     int buf_size = sizeof(buf);
 
-    g_sprintf(buf, "%d", id);
+    g_sprintf(buf, "/org/mpris/MediaPlayer2/Track/track%d", id);
     debug("get_metadata_v2: mpris:trackid %s\n", buf);
-    g_variant_builder_add (builder, "{sv}", "mpris:trackid", g_variant_new("s"
+    g_variant_builder_add (builder, "{sv}", "mpris:trackid", g_variant_new("o"
                                                 , buf));
 
     gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
