@@ -28,25 +28,32 @@
 
 DB_functions_t *deadbeef;
 
-DB_mpris_server_v1 *srv_v1 = NULL;
-DB_mpris_server_v2 *srv_v2 = NULL;
+static gint mpris_v1_enable = 1;
+static DB_mpris_server_v1 *srv_v1 = NULL;
+static gint mpris_v2_enable = 1;
+static DB_mpris_server_v2 *srv_v2 = NULL;
 
-GThread *server_thread_id = NULL;
-GMainLoop  *mpris_main_loop = NULL;
+static GThread *server_thread_id = NULL;
+static GMainLoop  *mpris_main_loop = NULL;
 
 static gpointer server_thread(gpointer data)
 {
     mpris_main_loop = g_main_loop_new(NULL, FALSE);
-    DB_mpris_server_start_v1(&srv_v1);
-    DB_mpris_server_start_v2(&srv_v2);
+    if(mpris_v1_enable == 1){
+        debug("MPRIS V1 Starting...");
+        DB_mpris_server_start_v1(&srv_v1);
+    }
+    if(mpris_v2_enable == 1){
+        debug("MPRIS V2 Starting...");
+        DB_mpris_server_start_v2(&srv_v2);
+    }
     g_main_loop_run(mpris_main_loop);
     return NULL;
 }
 
 
-int mpris_start (void) 
+static gint mpris_start() 
 {
-    debug("MPRIS Started....");
     if(!g_thread_supported()){
         g_thread_init(NULL);
         debug("Init the thread...");
@@ -61,47 +68,79 @@ int mpris_start (void)
     return 0;
 }
 
-int mpris_stop (void) 
+static gint mpris_stop() 
 {    
     debug("MPRIS Stoped....");
-    DB_mpris_server_stop_v1(srv_v1);
-    DB_mpris_server_stop_v2(srv_v2);
+    if(mpris_v1_enable == 1){
+        DB_mpris_server_stop_v1(srv_v1);
+    }
+    if(mpris_v2_enable == 1){
+        DB_mpris_server_stop_v2(srv_v2);
+    }
     g_main_loop_quit(mpris_main_loop);
     return 0;
 }
 
-static int mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) 
+/*
+ * Restart the MPRIS.
+ */
+static void mpris_restart()
+{
+    int v1_enable = 1, v2_enable = 1;
+    v1_enable = deadbeef -> conf_get_int("mpris_v1.enable", v1_enable);
+    v2_enable = deadbeef -> conf_get_int("mpris_v2.enable", v2_enable);
+
+    if(v1_enable != mpris_v1_enable || v2_enable != mpris_v2_enable){
+        mpris_stop();
+        mpris_v1_enable = v1_enable;
+        mpris_v2_enable = v2_enable;
+        mpris_start();
+    }
+}
+
+static gint mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) 
 {
     ddb_event_playpos_t *pp = NULL; 
 
     switch(id)
     {
     case DB_EV_SEEKED:
-        pp = (ddb_event_playpos_t*)ctx;
-        DB_mpris_emit_seeked_v2((gint64)(pp -> playpos * 1000.0));
+        if(mpris_v2_enable == 1){
+            pp = (ddb_event_playpos_t*)ctx;
+            DB_mpris_emit_seeked_v2((gint64)(pp -> playpos * 1000.0));
+        }
         break;
     case DB_EV_SONGCHANGED:
         debug("Track changed.");
-        DB_mpris_emit_trackchange_v1();
+        if(mpris_v1_enable == 1){
+            DB_mpris_emit_trackchange_v1();
+        }
         break;
     case DB_EV_PLAYLISTCHANGED:
         debug("Playlist changed.");
-        DB_mpris_emit_tracklistchange_v1();
+        if(mpris_v1_enable == 1){
+            DB_mpris_emit_tracklistchange_v1();
+        }
         break;
-    case DB_EV_SONGSTARTED:
     case DB_EV_CONFIGCHANGED:
+        //Maybe we need to restart...
+        mpris_restart();
+    case DB_EV_SONGSTARTED:
     case DB_EV_PAUSED:
     case DB_EV_TOGGLE_PAUSE:
     case DB_EV_STOP:
-        DB_mpris_emit_statuschange_v1();
+        if(mpris_v1_enable == 1){
+            DB_mpris_emit_statuschange_v1();
+        }
         break;
     default:
         break;
     }
     return 0;
 }
-static const char settings_dlg[] =
-    "property \"Enable\" checkbox mpris.enable 1;\n"
+static const gchar settings_dlg[] =
+    "property \"Enable MPRIS V1\" checkbox mpris_v1.enable 1;\n"
+    "property \"Enable MPRIS V2\" checkbox mpris_v2.enable 1;\n"
 ;
 
 DB_plugin_t plugin = {
@@ -114,7 +153,7 @@ DB_plugin_t plugin = {
     .name = "MPRIS Plugin v1 and v2",
     .descr = "Communicate with other application useing D-Bus.",
     .copyright = 
-        "Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>\n"
+        "Copyright (C) 2009-2011 HuangCongyu <huangcongyu2006@gmail.com>\n"
         "\n"
         "This program is free software; you can redistribute it and/or\n"
         "modify it under the terms of the GNU General Public License\n"

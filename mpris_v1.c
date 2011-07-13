@@ -412,16 +412,27 @@ void DB_mpris_emit_trackchange_v1()
 {
 
     GVariant *metadata = get_metadata(-1);
-    debug("emit track change signl.");
+    debug("V1: emit track change signl.");
     emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_PLAYER_PATH
                     , MPRIS_SIGNAL_TRACKCHANGE, metadata);
 }
 
+static GVariant *old_status = NULL;
 void DB_mpris_emit_statuschange_v1()
 {
-    debug("emit status change signl.");
-    emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_PLAYER_PATH
-                    , MPRIS_SIGNAL_STATUSCHANGE, get_status());
+    GVariant *new_status = get_status();
+    if(old_status == NULL || !g_variant_equal(old_status, new_status)){
+        if(old_status != NULL){
+            g_variant_unref(old_status);
+        }
+        old_status = g_variant_ref(new_status);
+        debug("V1: emit status change signl.");
+        emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_PLAYER_PATH
+                        , MPRIS_SIGNAL_STATUSCHANGE, new_status);
+    }else{
+        g_variant_unref(new_status);
+    }
+
 }
 void DB_mpris_emit_capschange_v1()
 {
@@ -451,7 +462,7 @@ void DB_mpris_emit_tracklistchange_v1()
     deadbeef -> plt_unref(pl);
     deadbeef -> pl_item_unref(track);
     GVariant *ret_val = g_variant_new("(i)", track_id + 1);
-    debug("emit tracklist change signl.");
+    debug("V1: emit tracklist change signl.");
     emit_signal(server -> con, MPRIS_V1_INTERFACE, MPRIS_V1_TRACKLIST_PATH
                     , MPRIS_SIGNAL_TRACKLISTCHAGE, ret_val);
 }
