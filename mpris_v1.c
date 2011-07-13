@@ -52,11 +52,11 @@ static void handle_root_method_call(GDBusConnection *connection,
                                     GDBusMethodInvocation *invocation,
                                     gpointer user_data)
 {
-    debug("/ method: %s", method_name);
+    debug("V1 / method: %s", method_name);
+    gchar identify[100];
     //Identity
     if(g_strcmp0(method_name, MPRIS_METHOD_IDENTITY) == 0){
-        gchar identify[100];
-        g_sprintf(identify, "DeadBeef %d.%d", deadbeef -> vmajor, deadbeef -> vminor);
+        g_sprintf(identify, "DeadBeeF %d.%d", deadbeef -> vmajor, deadbeef -> vminor);
         g_dbus_method_invocation_return_value(invocation
                             , g_variant_new("(s)", identify));
         return;
@@ -225,6 +225,9 @@ static void handle_player_method_call(GDBusConnection *connection,
     if(g_strcmp0(method_name, MPRIS_METHOD_VOLUMESET) == 0){
         int volume = 0;
         g_variant_get(parameters, "(i)", &volume);
+        volume = volume < 0 ? 0 : volume;
+        volume = volume > 100 ? 1000 : volume;
+
         float vol_f = 50 - ((float)volume / (float)100 * (float)50);
         debug("Set Volume: %d %f", volume, vol_f);
         deadbeef -> volume_set_db(-vol_f);

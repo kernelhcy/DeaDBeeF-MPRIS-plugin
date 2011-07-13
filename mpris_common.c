@@ -64,25 +64,25 @@ GVariant* get_metadata(int track_id)
     gchar *uri_str; 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%F");
     uri_str = g_strdup_printf("file://%s", buf);
-    debug("get_metadata: uri %s\n", uri_str);  
+    debug("get_metadata_v1: uri %s", uri_str);  
     g_variant_builder_add (builder, "{sv}", "location", g_variant_new("s"
                                                 , uri_str));
     g_free(uri_str);
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
-    debug("get_metadata: title %s\n", buf);
+    debug("get_metadata_v1: title %s", buf);
     g_variant_builder_add(builder, "{sv}", "title", g_variant_new("s", buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%a");
-    debug("get_metadata: artist %s\n", buf);
+    debug("get_metadata_v1: artist %s", buf);
     g_variant_builder_add(builder, "{sv}", "artist", g_variant_new("s", buf));
    
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
-    debug("get_metadata: album %s\n", buf);
+    debug("get_metadata_v1: album %s", buf);
     g_variant_builder_add(builder, "{sv}", "album", g_variant_new("s", buf));
 
     gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
-    debug("get_metadata: time %d\n", duration);
+    debug("get_metadata_v1: time %d", duration);
     g_variant_builder_add(builder, "{sv}", "time", g_variant_new("i", duration));
 
     //unref the track item
@@ -138,48 +138,48 @@ GVariant* get_metadata_v2(int track_id)
     int buf_size = sizeof(buf);
 
     g_sprintf(buf, "/org/mpris/MediaPlayer2/Track/track%d", id);
-    debug("get_metadata_v2: mpris:trackid %s\n", buf);
+    debug("get_metadata_v2: mpris:trackid %s", buf);
     g_variant_builder_add (builder, "{sv}", "mpris:trackid", g_variant_new("o"
                                                 , buf));
 
     gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
-    debug("get_metadata: length %d\n", duration);  
+    debug("get_metadata_v2: length %d", duration);  
     g_variant_builder_add (builder, "{sv}", "mpris:length", g_variant_new("x"
                                                 , (gint64)duration));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
-    debug("get_metadata: album %s\n", buf);  
+    debug("get_metadata_v2: album %s", buf);  
     g_variant_builder_add (builder, "{sv}", "xesam:album", g_variant_new("s"
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%a");
-    debug("get_metadata: artist %s\n", buf);  
+    debug("get_metadata_v2: artist %s", buf);  
     g_variant_builder_add (builder, "{sv}", "xesam:artist", g_variant_new("s"
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
-    debug("get_metadata: tile %s\n", buf);  
+    debug("get_metadata_v2: tile %s", buf);  
     g_variant_builder_add (builder, "{sv}", "xesam:tile", g_variant_new("s"
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%B");
-    debug("get_metadata: albumArtist %s\n", buf);  
+    debug("get_metadata_v2: albumArtist %s", buf);  
     g_variant_builder_add (builder, "{sv}", "xesam:albumArtist"
                                 , g_variant_new("s", buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%g");
-    debug("get_metadata: genre %s\n", buf);  
+    debug("get_metadata_v2: genre %s", buf);  
     g_variant_builder_add (builder, "{sv}", "xesam:genre", g_variant_new("s"
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%c");
-    debug("get_metadata: comment %s\n", buf);  
+    debug("get_metadata_v2: comment %s", buf);  
     g_variant_builder_add (builder, "{sv}", "xesam:comment", g_variant_new("s"
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%F");
     gchar *fullurl = g_strdup_printf("file://%s", buf);
-    debug("get_metadata: url %s\n", fullurl);  
+    debug("get_metadata_v2: url %s", fullurl);  
     g_variant_builder_add (builder, "{sv}", "xesam:url", g_variant_new("s"
                                                 , fullurl));
     g_free(fullurl);
@@ -231,19 +231,23 @@ GVariant *get_status()
 {
     DB_output_t *output = deadbeef -> get_output();
     int first = 0;
-    switch(output -> state())
-    {
-    case OUTPUT_STATE_PLAYING:
-        first = 0;
-        break;
-    case OUTPUT_STATE_PAUSED:
-        first = 1;
-        break;
-    case OUTPUT_STATE_STOPPED:
+    if(output == NULL){
         first = 2;
-        break;
-    default:
-        break;
+    }else{
+        switch(output -> state())
+        {
+        case OUTPUT_STATE_PLAYING:
+            first = 0;
+            break;
+        case OUTPUT_STATE_PAUSED:
+            first = 1;
+            break;
+        case OUTPUT_STATE_STOPPED:
+            first = 2;
+            break;
+        default:
+            break;
+        }
     }
 
     int second = 1;
