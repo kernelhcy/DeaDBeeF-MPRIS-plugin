@@ -1,6 +1,6 @@
 /*
-    DeaDBeeF - ultimate music player for GNU/Linux systems with X11
-    Copyright (C) 2009-2011 Alexey Yakovenko <waker@users.sourceforge.net>
+    MPRIS plugin for Deadbeef player
+    Copyright (C) 2011 HuangCongyu <huangcongyu2006@gmail.com>
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License
