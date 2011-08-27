@@ -1,8 +1,8 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT([deadbeef], [2.1.1], [huangcongyu2006@gmail.com])
+AC_INIT([deadbeef], [2.1.2], [huangcongyu2006@gmail.com])
 AC_CONFIG_HEADER(config.h)
 AC_CONFIG_AUX_DIR([build-aux])
-AM_INIT_AUTOMAKE([deadbeef], [2.1.1], [huangcongyu2006@gmail.com])
+AM_INIT_AUTOMAKE([deadbeef], [2.1.2], [huangcongyu2006@gmail.com])
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC
