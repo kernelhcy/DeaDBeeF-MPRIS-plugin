@@ -99,9 +99,19 @@ GVariant* get_metadata(int track_id)
     debug("get_metadata_v1: album %s", buf);
     g_variant_builder_add(builder, "{sv}", "album", g_variant_new("s", buf));
 
+    deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%g");
+    debug("get_metadata_v1: genre %s", buf);  
+    g_variant_builder_add(builder, "{sv}", "genre", g_variant_new("s", buf));
+    
     gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
+    debug("get_metadata_v1: mtime %d", duration / 1000);
+    g_variant_builder_add(builder, "{sv}", "mtime", g_variant_new("i", duration));
     debug("get_metadata_v1: time %d", duration);
-    g_variant_builder_add(builder, "{sv}", "time", g_variant_new("i", duration));
+    g_variant_builder_add(builder, "{sv}", "time", g_variant_new("i", duration / 1000));
+
+    gint32 bitrate = (gint32)(deadbeef -> streamer_get_apx_bitrate());
+    debug("get_metadata_v1: audio-bitrate: %d", bitrate);
+    g_variant_builder_add(builder, "{sv}", "audio-bitrate", g_variant_new("i", bitrate));
 
     //unref the track item
     deadbeef -> pl_item_unref(track);
