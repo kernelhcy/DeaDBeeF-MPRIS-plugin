@@ -150,8 +150,8 @@ DB_plugin_t plugin = {
     .version_major = 2,
     .version_minor = 1,
     .id = "mpris",
-    .name = "MPRIS Plugin v1 and v2",
-    .descr = "Communicate with other application useing D-Bus.",
+    .name ="MPRIS v1 and v2 plugin",
+    .descr = "Communicate with other applications using D-Bus.",
     .copyright = 
         "Copyright (C) 2009-2011 HuangCongyu <huangcongyu2006@gmail.com>\n"
         "\n"
