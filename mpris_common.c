@@ -186,8 +186,8 @@ GVariant* get_metadata_v2(int track_id)
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%t");
-    debug("get_metadata_v2: tile %s", buf);  
-    g_variant_builder_add (builder, "{sv}", "xesam:tile", g_variant_new("s"
+    debug("get_metadata_v2: title %s", buf);  
+    g_variant_builder_add (builder, "{sv}", "xesam:title", g_variant_new("s"
                                                 , buf));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%B");
