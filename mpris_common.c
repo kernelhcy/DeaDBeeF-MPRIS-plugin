@@ -155,7 +155,6 @@ GVariant* get_metadata_v2(int track_id)
     deadbeef -> plt_unref(pl);
 
     GVariant *tmp;
-    GVariant *ret = NULL;
 
     GVariantBuilder *builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
     if(track == NULL){
@@ -218,16 +217,9 @@ GVariant* get_metadata_v2(int track_id)
 no_track_playing:
     tmp = g_variant_builder_end(builder);
 
-    /*
-     * We need a tuple containing a array of dict.
-     */
-    GVariantBuilder *ret_builder = g_variant_builder_new(G_VARIANT_TYPE("(a{sv})"));
-    g_variant_builder_add_value(ret_builder, tmp);
-    ret = g_variant_builder_end(ret_builder);
     g_variant_builder_unref(builder);
-    g_variant_builder_unref(ret_builder);
 
-    return ret;
+    return tmp;
 }
 /*
  * Set the loop status.
