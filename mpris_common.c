@@ -169,10 +169,10 @@ GVariant* get_metadata_v2(int track_id)
     g_variant_builder_add (builder, "{sv}", "mpris:trackid", g_variant_new("o"
                                                 , buf));
 
-    gint32 duration = (gint32)((deadbeef -> pl_get_item_duration(track)) * 1000.0);
+    gint64 duration = (gint64)((deadbeef -> pl_get_item_duration(track)) * 1000000.0);
     debug("get_metadata_v2: length %d", duration);  
     g_variant_builder_add (builder, "{sv}", "mpris:length", g_variant_new("x"
-                                                , (gint64)duration));
+                                                , duration));
 
     deadbeef -> pl_format_title(track, -1, buf, buf_size, -1, "%b");
     debug("get_metadata_v2: album %s", buf);  

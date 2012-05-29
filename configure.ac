@@ -23,6 +23,16 @@ MPRIS_CFLAGS="$GLIB_DEPS_CFLAGS $GIO_DEPS_CFLAGS $GTHREAD_DEPS_CFLAGS"
 AC_SUBST(MPRIS_LIBS)
 AC_SUBST(MPRIS_CFLAGS)
 
+dnl Search for deadbeef installation directory
+AC_PREFIX_PROGRAM(deadbeef)
+if test "x$prefix" != xNone; then
+    PLUGIN_INST="$prefix/lib/deadbeef"
+else
+    dnl Use default if nothing is found:
+    PLUGIN_INST="$ac_default_prefix/lib/deadbeef"
+fi
+AC_SUBST(PLUGIN_INST)
+
 AC_CONFIG_FILES([Makefile test/Makefile])
 
 AC_OUTPUT
