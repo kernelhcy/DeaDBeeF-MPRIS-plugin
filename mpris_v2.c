@@ -678,8 +678,9 @@ static void on_name_lost (GDBusConnection *connection,
 
 gint DB_mpris_server_start_v2(DB_mpris_server_v2 **srv)
 {
+#if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 36)
     g_type_init();
-
+#endif
     server = g_new(DB_mpris_server_v2, 1);
     if(server == NULL){
         debug("Create DB_mpris_server error!!\n");

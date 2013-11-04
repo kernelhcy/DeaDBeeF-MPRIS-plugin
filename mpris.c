@@ -54,12 +54,18 @@ static gpointer server_thread(gpointer data)
 
 static gint mpris_start() 
 {
+#if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 32)
     if(!g_thread_supported()){
         g_thread_init(NULL);
         debug("Init the thread...");
     }
+#endif
     GError *err = NULL;
+#if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 32)
     server_thread_id = g_thread_create(server_thread, NULL, FALSE, &err);
+#else
+    server_thread_id = g_thread_new(NULL, server_thread, NULL);
+#endif
     if(server_thread_id == NULL){
         debug("Create MPRIS thread error. %d:%s", err -> code, err -> message);
         g_error_free(err);
