@@ -139,6 +139,22 @@ static gint mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
             DB_mpris_emit_statuschange_v1();
         }
         break;
+    case DB_EV_VOLUMECHANGED:
+//         if(1 == mpris_v2_enable)
+//         {
+//             float volume = (-2.0 * deadbeef -> volume_get_db() + 100.0) / 100.0;
+//             if(volume > 1.0)
+//             {
+//                 volume = 1.0;
+//             }
+//             if(volume < 0.0)
+//             {
+//                 volume = 0.0;
+//             }
+// 
+//             DB_mpris_emit_volume_change_v2(volume);
+//         }
+        break;
     default:
         break;
     }

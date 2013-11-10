@@ -30,4 +30,5 @@ gint DB_mpris_server_stop_v2(DB_mpris_server_v2 *srv);
  */
 void DB_mpris_emit_tracklistchange_v2();
 void DB_mpris_emit_seeked_v2(gint64 seeked);
+// void DB_mpris_emit_volume_change_v2(float volume);
 #endif
