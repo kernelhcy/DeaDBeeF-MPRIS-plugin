@@ -82,9 +82,9 @@ int main(int argc, char **argv)
     }
     GError *error;
     GDBusProxy *proxy;
-
+#if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 36)
     g_type_init ();
-
+#endif
     loop = NULL;
     proxy = NULL;
     loop = g_main_loop_new (NULL, FALSE);

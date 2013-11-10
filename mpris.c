@@ -54,12 +54,18 @@ static gpointer server_thread(gpointer data)
 
 static gint mpris_start() 
 {
+#if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 32)
     if(!g_thread_supported()){
         g_thread_init(NULL);
         debug("Init the thread...");
     }
+#endif
     GError *err = NULL;
+#if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 32)
     server_thread_id = g_thread_create(server_thread, NULL, FALSE, &err);
+#else
+    server_thread_id = g_thread_new(NULL, server_thread, NULL);
+#endif
     if(server_thread_id == NULL){
         debug("Create MPRIS thread error. %d:%s", err -> code, err -> message);
         g_error_free(err);
@@ -132,6 +138,22 @@ static gint mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
         if(mpris_v1_enable == 1){
             DB_mpris_emit_statuschange_v1();
         }
+        break;
+    case DB_EV_VOLUMECHANGED:
+//         if(1 == mpris_v2_enable)
+//         {
+//             float volume = (-2.0 * deadbeef -> volume_get_db() + 100.0) / 100.0;
+//             if(volume > 1.0)
+//             {
+//                 volume = 1.0;
+//             }
+//             if(volume < 0.0)
+//             {
+//                 volume = 0.0;
+//             }
+// 
+//             DB_mpris_emit_volume_change_v2(volume);
+//         }
         break;
     default:
         break;
