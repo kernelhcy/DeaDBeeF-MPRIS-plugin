@@ -6,12 +6,12 @@
     modify it under the terms of the GNU General Public License
     as published by the Free Software Foundation; either version 2
     of the License, or (at your option) any later version.
-    
+
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-    
+
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
@@ -34,11 +34,11 @@ static gint mpris_v2_enable = 1;
 static DB_mpris_server_v2 *srv_v2 = NULL;
 
 static GThread *server_thread_id = NULL;
-static GMainLoop  *mpris_main_loop = NULL;
+static GMutex server_thread_mutex;
+static GCond server_thread_cond;
 
 static gpointer server_thread(gpointer data)
 {
-    mpris_main_loop = g_main_loop_new(NULL, FALSE);
     if(mpris_v1_enable == 1){
         debug("MPRIS V1 Starting...");
         DB_mpris_server_start_v1(&srv_v1);
@@ -47,12 +47,12 @@ static gpointer server_thread(gpointer data)
         debug("MPRIS V2 Starting...");
         DB_mpris_server_start_v2(&srv_v2);
     }
-    g_main_loop_run(mpris_main_loop);
+    g_cond_wait(&server_thread_cond, &server_thread_mutex);
     return NULL;
 }
 
 
-static gint mpris_start() 
+static gint mpris_start()
 {
 #if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 32)
     if(!g_thread_supported()){
@@ -61,10 +61,17 @@ static gint mpris_start()
     }
 #endif
     GError *err = NULL;
+    g_mutex_init(&server_thread_mutex);
+    g_cond_init(&server_thread_cond);
+/*
+ * g_thread_create has been deprecated since version 2.32
+ * and should not be used in newly-written code. Use g_thread_new() instead
+ * https://developer.gnome.org/glib/2.37/glib-Deprecated-Thread-APIs.html#g-thread-create
+ */
 #if (GLIB_MAJOR_VERSION <= 2 && GLIB_MINOR_VERSION < 32)
     server_thread_id = g_thread_create(server_thread, NULL, FALSE, &err);
 #else
-    server_thread_id = g_thread_new(NULL, server_thread, NULL);
+    server_thread_id = g_thread_try_new("mpris_server_thread", server_thread, NULL, &err);
 #endif
     if(server_thread_id == NULL){
         debug("Create MPRIS thread error. %d:%s", err -> code, err -> message);
@@ -74,8 +81,8 @@ static gint mpris_start()
     return 0;
 }
 
-static gint mpris_stop() 
-{    
+static gint mpris_stop()
+{
     debug("MPRIS Stoped....");
     if(mpris_v1_enable == 1){
         DB_mpris_server_stop_v1(srv_v1);
@@ -83,7 +90,7 @@ static gint mpris_stop()
     if(mpris_v2_enable == 1){
         DB_mpris_server_stop_v2(srv_v2);
     }
-    g_main_loop_quit(mpris_main_loop);
+    g_cond_signal(&server_thread_cond);
     return 0;
 }
 
@@ -104,9 +111,9 @@ static void mpris_restart()
     }
 }
 
-static gint mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2) 
+static gint mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
 {
-    ddb_event_playpos_t *pp = NULL; 
+    ddb_event_playpos_t *pp = NULL;
 
     switch(id)
     {
@@ -151,7 +158,7 @@ static gint mpris_message (uint32_t id, uintptr_t ctx, uint32_t p1, uint32_t p2)
 //             {
 //                 volume = 0.0;
 //             }
-// 
+//
 //             DB_mpris_emit_volume_change_v2(volume);
 //         }
         break;
@@ -174,7 +181,7 @@ DB_plugin_t plugin = {
     .id = "mpris",
     .name ="MPRIS v1 and v2 plugin",
     .descr = "Communicate with other applications using D-Bus.",
-    .copyright = 
+    .copyright =
         "Copyright (C) 2009-2011 HuangCongyu <huangcongyu2006@gmail.com>\n"
         "\n"
         "This program is free software; you can redistribute it and/or\n"
@@ -200,7 +207,7 @@ DB_plugin_t plugin = {
     .message = mpris_message,
 };
 
-DB_plugin_t * mpris_load (DB_functions_t *ddb) 
+DB_plugin_t * mpris_load (DB_functions_t *ddb)
 {
     debug("Load...");
     deadbeef = ddb;
